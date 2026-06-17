@@ -30,7 +30,9 @@
   <link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:ital,wght@0,300;0,400;0,500;0,600;0,700;0,800;1,400&display=swap" rel="stylesheet">
   <style>
     *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
-    html,body{height:100%;background:#060818;color:#f0f2ff;font-family:"Be Vietnam Pro",system-ui,sans-serif;overflow-x:hidden}
+    html{overflow-x:hidden}
+    html,body{height:100%;background:#060818;color:#f0f2ff;font-family:"Be Vietnam Pro",system-ui,sans-serif;overflow-x:hidden;max-width:100%}
+    body{position:relative}
     #__app_shell{display:none}
     .pre-load{
       position:fixed;inset:0;z-index:9999;
@@ -67,7 +69,7 @@
 <div id="__app_root"></div>
 
 <!-- Nội dung tĩnh cho Google crawl — ẩn với người dùng -->
-<div style="position:absolute;width:1px;height:1px;overflow:hidden;opacity:0;pointer-events:none" aria-hidden="true">
+<div style="position:absolute;left:-9999px;top:0;width:1px;height:1px;overflow:hidden" aria-hidden="true">
   <h1>TP DESIGN PPTX — Mẫu PowerPoint và Poster Đẹp Miễn Phí</h1>
   <h2>Kho mẫu PowerPoint đẹp chuyên nghiệp</h2>
   <p>TP DESIGN PPTX cung cấp kho mẫu PowerPoint đẹp, slide thuyết trình chuyên nghiệp miễn phí dành cho học sinh, sinh viên và giáo viên tại Việt Nam. Tải mẫu PowerPoint đẹp, template slide thuyết trình ấn tượng, mẫu poster đẹp chất lượng cao.</p>
