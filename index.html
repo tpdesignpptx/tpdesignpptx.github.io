@@ -343,45 +343,162 @@ function bindEvents(){
 
 function loadDMCA(){ var sc=document.createElement("script");sc.src="https://images.dmca.com/Badges/DMCABadgeHelper.min.js";sc.defer=true;document.body.appendChild(sc); }
 
-/* ===== Chatbot: kiến thức hỗ trợ — CHỈ lấy dữ liệu từ Google Sheet (API_BOT) ===== */
+/* ===== Chatbot: kiến thức hỗ trợ — dữ liệu từ Google Sheet + fuzzy matching + hình ảnh minh họa ===== */
 var BOT_ZALO = "https://zalo.me/84773181186";
 var BOT_EMAIL = "dphu7819@gmail.com";
 var BOT_GREETING = "Xin chào 👋 Mình là trợ lý ảo của TP DESIGN PPTX. Bạn cần hỗ trợ gì nào?";
 var BOT_FALLBACK = "Mình chưa có câu trả lời phù hợp cho câu hỏi này 🤔. Bạn nhắn trực tiếp qua Zalo để được hỗ trợ nhanh nhất nhé: " + BOT_ZALO;
 var BOT_KB = [];
-function botFindAnswer(text){
-  var t = s(text).toLowerCase();
-  for (var i=0;i<BOT_KB.length;i++){
-    var item = BOT_KB[i];
-    for (var j=0;j<item.kws.length;j++){
-      if (t.indexOf(item.kws[j]) !== -1) return item.a;
+
+/* --- Ảnh minh họa dựng sẵn bằng SVG (không phụ thuộc link ngoài) --- */
+function botBuildReloadIllustration(){
+  var svg = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 300 170" width="260">'
+    + '<rect x="1" y="1" width="298" height="168" rx="14" fill="#0d1230" stroke="rgba(255,255,255,.14)"/>'
+    + '<rect x="1" y="1" width="298" height="34" rx="14" fill="#141a3a"/>'
+    + '<circle cx="20" cy="18" r="5" fill="#ff5f56"/><circle cx="38" cy="18" r="5" fill="#ffbd2e"/><circle cx="56" cy="18" r="5" fill="#27c93f"/>'
+    + '<rect x="80" y="10" width="170" height="16" rx="8" fill="rgba(255,255,255,.08)"/>'
+    + '<g transform="translate(150,100)">'
+    + '<circle r="34" fill="none" stroke="#00d4ff" stroke-width="6" stroke-dasharray="180" stroke-dashoffset="40" stroke-linecap="round"/>'
+    + '<path d="M22 -22 L34 -22 L34 -10" fill="none" stroke="#00d4ff" stroke-width="6" stroke-linecap="round" stroke-linejoin="round"/>'
+    + '</g>'
+    + '<text x="150" y="150" text-anchor="middle" font-family="Arial" font-size="13" fill="rgba(240,242,255,.75)">Bấm nút Tải lại (⟳) hoặc phím F5</text>'
+    + '</svg>';
+  return "data:image/svg+xml;utf8," + encodeURIComponent(svg);
+}
+
+/* --- Kiến thức dựng sẵn (luôn có, không cần Sheet) --- */
+var BOT_BUILTIN_KB = [
+  {
+    kws: ["lam moi", "load lai", "reload", "khong hien", "khong load", "trang trang", "khong thay mau", "loi hien thi", "man hinh trang", "khong load duoc"],
+    a: "Nếu trang không hiển thị mẫu, bạn thử bấm nút ↻ \"Làm mới\" trên trang, hoặc bấm nút Tải lại trên trình duyệt (biểu tượng vòng tròn mũi tên cạnh thanh địa chỉ), hoặc nhấn phím F5 nhé!",
+    imgs: [botBuildReloadIllustration()]
+  },
+  {
+    kws: ["lien he", "zalo", "sdt", "so dien thoai", "gap ai", "ai ho tro", "nhan tin"],
+    a: "Bạn có thể liên hệ trực tiếp qua Zalo: " + BOT_ZALO + " hoặc Email: " + BOT_EMAIL + " để được hỗ trợ nhanh nhất nhé!"
+  },
+  {
+    kws: ["gia bao nhieu", "gia ca", "mua o dau", "thanh toan", "dat mua", "gia tien"],
+    a: "Hiện website chỉ trưng bày mẫu để tham khảo, mọi trao đổi về giá và cách nhận file vui lòng nhắn qua Zalo: " + BOT_ZALO
+  },
+  {
+    kws: ["ban quyen", "copyright", "dmca", "vi pham"],
+    a: "Toàn bộ mẫu thiết kế trên website thuộc bản quyền của TP DESIGN PPTX. Nếu bạn phát hiện vi phạm bản quyền, vui lòng liên hệ Email: " + BOT_EMAIL
+  }
+];
+
+/* --- Chuẩn hóa chuỗi: bỏ dấu, chữ thường, bỏ ký tự đặc biệt --- */
+function botNormalize(str){
+  str = s(str).toLowerCase();
+  str = str.normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+  str = str.replace(/đ/g, "d");
+  str = str.replace(/[^a-z0-9\s]/g, " ");
+  str = str.replace(/\s+/g, " ").trim();
+  return str;
+}
+
+/* --- Khoảng cách chỉnh sửa Levenshtein (chấp nhận sai chính tả) --- */
+function botLevenshtein(a, b){
+  var m = a.length, n = b.length;
+  if (!m) return n;
+  if (!n) return m;
+  var dp = [];
+  for (var i = 0; i <= m; i++) dp[i] = [i];
+  for (var j = 0; j <= n; j++) dp[0][j] = j;
+  for (i = 1; i <= m; i++){
+    for (j = 1; j <= n; j++){
+      var cost = a[i - 1] === b[j - 1] ? 0 : 1;
+      dp[i][j] = Math.min(dp[i - 1][j] + 1, dp[i][j - 1] + 1, dp[i - 1][j - 1] + cost);
     }
   }
-  return BOT_FALLBACK;
+  return dp[m][n];
 }
+function botFuzzyWordMatch(w1, w2){
+  if (w1 === w2) return true;
+  var maxLen = Math.max(w1.length, w2.length);
+  if (maxLen < 3) return false;
+  var threshold = maxLen <= 5 ? 1 : (maxLen <= 8 ? 2 : 3);
+  if (Math.abs(w1.length - w2.length) > threshold) return false;
+  return botLevenshtein(w1, w2) <= threshold;
+}
+
+/* --- Tìm câu trả lời phù hợp nhất theo điểm số, không cần khớp tuyệt đối --- */
+function botFindAnswer(text){
+  var norm = botNormalize(text);
+  var inputWords = norm.split(" ").filter(Boolean);
+  var bestItem = null, bestScore = 0;
+  BOT_KB.forEach(function(item){
+    var score = 0;
+    item.kwNorm.forEach(function(kwPhrase){
+      var kwWords = kwPhrase.split(" ").filter(Boolean);
+      if (kwPhrase.length >= 3 && norm.indexOf(kwPhrase) !== -1){
+        score += 3 * kwWords.length;
+        return;
+      }
+      var matched = 0;
+      kwWords.forEach(function(kw){
+        for (var i = 0; i < inputWords.length; i++){
+          if (botFuzzyWordMatch(kw, inputWords[i])){ matched++; break; }
+        }
+      });
+      if (matched > 0) score += matched;
+    });
+    if (score > bestScore){ bestScore = score; bestItem = item; }
+  });
+  return bestScore > 0 ? bestItem : null;
+}
+
+function botPrepareKB(list){
+  return list.map(function(item){
+    return {
+      kwNorm: (item.kws || []).map(botNormalize).filter(Boolean),
+      a: item.a,
+      imgs: item.imgs || []
+    };
+  });
+}
+
 async function loadBotKB(){
+  var kb = botPrepareKB(BOT_BUILTIN_KB);
   try{
     var data = await fetchJ(withTs(API_BOT));
-    if(!Array.isArray(data)) return;
-    var sheetKB = data.map(function(item){
-      var kwRaw = s(Array.isArray(item) ? item[0] : (item.tukhoa || item.TuKhoa || item.keywords));
-      var ans   = s(Array.isArray(item) ? item[1] : (item.traloi || item.TraLoi || item.answer));
-      var kws = kwRaw.split(/[;,]/).map(function(k){ return k.trim().toLowerCase(); }).filter(Boolean);
-      return { kws: kws, a: ans };
-    }).filter(function(x){ return x.kws.length && x.a; });
-    BOT_KB = sheetKB;
-  }catch(e){ /* Không tải được sheet -> BOT_KB rỗng, mọi câu hỏi trả về BOT_FALLBACK */ }
+    if (Array.isArray(data)){
+      var sheetKB = data.map(function(item){
+        var kwRaw = s(Array.isArray(item) ? item[0] : (item.tukhoa || item.TuKhoa || item.keywords));
+        var ans   = s(Array.isArray(item) ? item[1] : (item.traloi || item.TraLoi || item.answer));
+        var imgRaw= s(Array.isArray(item) ? item[2] : (item.anh || item.Anh || item.hinhanh));
+        var kws = kwRaw.split(/[;,]/).map(function(k){ return k.trim(); }).filter(Boolean);
+        var imgs = imgRaw.split(";").map(function(u){ return u.trim(); }).filter(function(u){ return isUrl(u); });
+        return { kws: kws, a: ans, imgs: imgs };
+      }).filter(function(x){ return x.kws.length && x.a; });
+      kb = kb.concat(botPrepareKB(sheetKB));
+    }
+  }catch(e){ /* Không tải được Sheet -> vẫn dùng kiến thức dựng sẵn */ }
+  BOT_KB = kb;
 }
-function botAddMsg(text, who){
-  var body = $("botBody"); if(!body) return;
+
+function botAddMsg(payload, who){
+  var body = $("botBody"); if (!body) return;
+  var text = typeof payload === "string" ? payload : payload.text;
+  var imgs = typeof payload === "string" ? [] : (payload.imgs || []);
   var div = document.createElement("div");
-  div.className = "bot-msg " + (who==="user"?"user":"bot");
-  div.textContent = text;
+  div.className = "bot-msg " + (who === "user" ? "user" : "bot");
+  var textNode = document.createElement("div");
+  textNode.textContent = text;
+  div.appendChild(textNode);
+  imgs.forEach(function(src){
+    var img = document.createElement("img");
+    img.src = src;
+    img.alt = "";
+    img.loading = "lazy";
+    img.style.cssText = "max-width:100%;border-radius:10px;margin-top:8px;display:block";
+    div.appendChild(img);
+  });
   body.appendChild(div);
   body.scrollTop = body.scrollHeight;
 }
 function botAddTyping(){
-  var body = $("botBody"); if(!body) return null;
+  var body = $("botBody"); if (!body) return null;
   var div = document.createElement("div");
   div.className = "bot-typing";
   div.id = "botTypingNow";
@@ -393,39 +510,37 @@ function botAddTyping(){
 function botReply(userText){
   botAddMsg(userText, "user");
   var typing = botAddTyping();
-  var delay = 500 + Math.random()*500;
+  var delay = 500 + Math.random() * 500;
   setTimeout(function(){
     if (typing && typing.parentNode) typing.parentNode.removeChild(typing);
-    botAddMsg(botFindAnswer(userText), "bot");
+    var found = botFindAnswer(userText);
+    if (found) botAddMsg({ text: found.a, imgs: found.imgs }, "bot");
+    else botAddMsg(BOT_FALLBACK, "bot");
   }, delay);
 }
 function initBot(){
   var fab = $("botFab"), panel = $("botPanel"), close = $("botClose"), input = $("botInput"), send = $("botSend");
-  if(!fab || !panel) return;
+  if (!fab || !panel) return;
   loadBotKB();
   var greeted = false;
   function openPanel(){
     panel.classList.add("open");
     fab.classList.add("hidden");
-    if(!greeted){ greeted=true; botAddMsg(BOT_GREETING,"bot"); }
-    setTimeout(function(){ if(input) input.focus(); }, 200);
+    if (!greeted){ greeted = true; botAddMsg(BOT_GREETING, "bot"); }
+    setTimeout(function(){ if (input) input.focus(); }, 200);
   }
   function closePanel(){ panel.classList.remove("open"); fab.classList.remove("hidden"); }
   fab.addEventListener("click", openPanel);
   close.addEventListener("click", closePanel);
   function submitInput(){
     var v = s(input.value).trim();
-    if(!v) return;
+    if (!v) return;
     input.value = "";
     botReply(v);
   }
   send.addEventListener("click", submitInput);
-  input.addEventListener("keydown", function(e){ if(e.key === "Enter") submitInput(); });
+  input.addEventListener("keydown", function(e){ if (e.key === "Enter") submitInput(); });
 }
-
-buildHTML();
-bindEvents();
-initBot();
 loadDMCA();
 load(false).then(function(){ initWelcome(); });
 loadRes(false);
