@@ -541,6 +541,9 @@ function initBot(){
   send.addEventListener("click", submitInput);
   input.addEventListener("keydown", function(e){ if (e.key === "Enter") submitInput(); });
 }
+buildHTML();
+bindEvents();
+initBot();
 loadDMCA();
 load(false).then(function(){ initWelcome(); });
 loadRes(false);
