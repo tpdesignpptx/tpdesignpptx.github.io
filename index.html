@@ -347,93 +347,17 @@ function loadDMCA(){ var sc=document.createElement("script");sc.src="https://ima
 var BOT_ZALO = "https://zalo.me/84773181186";
 var BOT_EMAIL = "dphu7819@gmail.com";
 var BOT_GREETING = "Xin chào 👋 Mình là trợ lý ảo của TP DESIGN PPTX. Bạn cần hỗ trợ gì nào?";
-var BOT_FALLBACK = "Mình chưa tìm thấy câu trả lời phù hợp 🤔. Bạn thử nhập câu hỏi gần giống hoặc ngắn gọn hơn nhé!";
+var BOT_FALLBACK = "Mình chưa có câu trả lời phù hợp cho câu hỏi này 🤔. Bạn nhắn trực tiếp qua Zalo để được hỗ trợ nhanh nhất nhé: " + BOT_ZALO;
 var BOT_KB = [];
-
-/*
- * Tìm từ khóa mềm hơn: không bắt buộc người dùng phải gõ đúng 100%.
- * Ví dụ: "bảo hanh", "baohanh", "bao hanh", "bảo hànhg" vẫn có thể
- * khớp với từ khóa "bảo hành". Ưu tiên khớp nguyên cụm trước, sau đó
- * mới dùng độ tương đồng để tránh việc chatbot trả lời "chưa có câu trả lời"
- * chỉ vì người dùng gõ sai 1-2 ký tự.
- */
-function botNormalize(text){
-  return s(text).toLowerCase()
-    .normalize("NFD").replace(/[\u0300-\u036f]/g, "")
-    .replace(/đ/g, "d")
-    .replace(/[^a-z0-9\s]/g, " ")
-    .replace(/\s+/g, " ")
-    .trim();
-}
-
-function botCompact(text){
-  return botNormalize(text).replace(/\s+/g, "");
-}
-
-function botLevenshtein(a,b){
-  a=botCompact(a); b=botCompact(b);
-  if(a===b) return 0;
-  if(!a) return b.length;
-  if(!b) return a.length;
-  var prev=[], cur=[], i,j;
-  for(j=0;j<=b.length;j++) prev[j]=j;
-  for(i=1;i<=a.length;i++){
-    cur[0]=i;
-    for(j=1;j<=b.length;j++){
-      var cost=a.charAt(i-1)===b.charAt(j-1)?0:1;
-      cur[j]=Math.min(cur[j-1]+1, prev[j]+1, prev[j-1]+cost);
-    }
-    var tmp=prev; prev=cur; cur=tmp;
-  }
-  return prev[b.length];
-}
-
-function botSimilarity(a,b){
-  var x=botCompact(a), y=botCompact(b);
-  if(!x || !y) return 0;
-  if(x===y) return 1;
-  if(x.indexOf(y)!==-1 || y.indexOf(x)!==-1) return 0.96;
-  var maxLen=Math.max(x.length,y.length);
-  return 1-(botLevenshtein(x,y)/maxLen);
-}
-
 function botFindAnswer(text){
-  var raw=s(text).trim();
-  var t=botNormalize(raw);
-  if(!t) return BOT_FALLBACK;
-
-  var bestAnswer=null, bestScore=0;
-
-  for(var i=0;i<BOT_KB.length;i++){
-    var item=BOT_KB[i];
-    for(var j=0;j<item.kws.length;j++){
-      var kw=botNormalize(item.kws[j]);
-      if(!kw) continue;
-
-      /* 1. Khớp trực tiếp sau khi bỏ dấu/ký tự thừa. */
-      if(t.indexOf(kw)!==-1 || botCompact(t).indexOf(botCompact(kw))!==-1){
-        return item.a;
-      }
-
-      /* 2. So sánh từng từ/cụm từ để chịu lỗi chính tả nhẹ. */
-      var score=botSimilarity(t,kw);
-      var words=t.split(" ");
-      for(var w=0;w<words.length;w++){
-        if(words[w].length>=3){
-          score=Math.max(score,botSimilarity(words[w],kw));
-        }
-      }
-
-      /* Cho phép sai khoảng 1-3 ký tự tùy độ dài từ khóa. */
-      var threshold=kw.length<=5?0.72:(kw.length<=9?0.68:0.64);
-      if(score>=threshold && score>bestScore){
-        bestScore=score;
-        bestAnswer=item.a;
-      }
+  var t = s(text).toLowerCase();
+  for (var i=0;i<BOT_KB.length;i++){
+    var item = BOT_KB[i];
+    for (var j=0;j<item.kws.length;j++){
+      if (t.indexOf(item.kws[j]) !== -1) return item.a;
     }
   }
-
-  return bestAnswer || BOT_FALLBACK;
+  return BOT_FALLBACK;
 }
 async function loadBotKB(){
   try{
@@ -446,11 +370,7 @@ async function loadBotKB(){
       return { kws: kws, a: ans };
     }).filter(function(x){ return x.kws.length && x.a; });
     BOT_KB = sheetKB;
-  }catch(e){
-    /* API lỗi tạm thời: không hiện lỗi kỹ thuật cho người dùng.
-       Nếu dữ liệu cũ đã có thì vẫn giữ nguyên để chatbot tiếp tục trả lời. */
-    console.warn("Bot KB unavailable", e);
-  }
+  }catch(e){ /* Không tải được sheet -> BOT_KB rỗng, mọi câu hỏi trả về BOT_FALLBACK */ }
 }
 function botAddMsg(text, who){
   var body = $("botBody"); if(!body) return;
