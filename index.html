@@ -343,13 +343,13 @@ function bindEvents(){
 
 function loadDMCA(){ var sc=document.createElement("script");sc.src="https://images.dmca.com/Badges/DMCABadgeHelper.min.js";sc.defer=true;document.body.appendChild(sc); }
 
-/* ===== Chatbot: dùng Gemini API, tự trả lời linh hoạt ===== */
-var BOT_ZALO = "https://zalo.me/84773181186";
+/* ===== Chatbot: Gemini qua Google Apps Script ===== */
+var BOT_ZALO = "0773181186";
 var BOT_EMAIL = "dphu7819@gmail.com";
 var BOT_GREETING = "Xin chào 👋 Mình là trợ lý ảo của TP DESIGN PPTX. Bạn cần hỏi gì về mẫu thiết kế, cách nhận file, hay giá cả cứ hỏi mình nhé!";
 var BOT_FALLBACK = "Xin lỗi bạn, hiện mình đang gặp sự cố kết nối 😥. Bạn vui lòng nhắn trực tiếp qua Zalo để được hỗ trợ nhanh nhất: " + BOT_ZALO;
 
-// Gemini chạy qua Google Apps Script — KHÔNG đặt API key trong file này.
+// Gemini chạy qua Google Apps Script — API key KHÔNG nằm trong file website.
 var GEMINI_ENDPOINT = "https://script.google.com/macros/s/AKfycbxrpQ-wjODXz-_bjE1ClK6Re98kTA17SbGozEdyAoqllApLpPwNIbzB3WYyLuaUs04LbQ/exec";
 
 var BOT_SYSTEM_PROMPT =
@@ -386,22 +386,22 @@ async function botAskGemini(userText){
     if(!res.ok) throw new Error("HTTP " + res.status);
 
     var data = await res.json();
-    var answer = data && data.answer ? s(data.answer).trim() : "";
 
-    if(!data.success || !answer) {
-      throw new Error(data && data.error ? data.error : "Empty response");
+    if(!data || !data.success){
+      throw new Error(data && data.error ? data.error : "Apps Script trả về lỗi");
     }
+
+    var answer = s(data.answer).trim();
+    if(!answer) throw new Error("Empty response");
 
     BOT_HISTORY.push({ role: "model", parts: [{ text: answer }] });
     if (BOT_HISTORY.length > 12) BOT_HISTORY = BOT_HISTORY.slice(-12);
 
     return answer;
 
-  }catch(err){
+  }catch(e){
     clearTimeout(timer);
-    console.error("Gemini/Apps Script error:", err);
-
-    // Xóa câu user vừa thêm nếu API thất bại để không làm hỏng lịch sử phiên.
+    console.error("Gemini Apps Script error:", e);
     BOT_HISTORY.pop();
     return BOT_FALLBACK;
   }
