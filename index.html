@@ -347,31 +347,114 @@ function loadDMCA(){ var sc=document.createElement("script");sc.src="https://ima
 var BOT_ZALO = "https://zalo.me/84773181186";
 var BOT_EMAIL = "dphu7819@gmail.com";
 var BOT_GREETING = "Xin chào 👋 Mình là trợ lý ảo của TP DESIGN PPTX. Bạn cần hỗ trợ gì nào?";
-var BOT_FALLBACK = "Mình chưa có câu trả lời phù hợp cho câu hỏi này 🤔. Bạn nhắn trực tiếp qua Zalo để được hỗ trợ nhanh nhất nhé: " + BOT_ZALO;
+var BOT_FALLBACK = "Mình chưa tìm thấy câu trả lời phù hợp 🤔. Bạn thử nhập câu hỏi gần giống hoặc ngắn gọn hơn nhé!";
 var BOT_KB = [];
+
+/* Chuẩn hóa tiếng Việt để từ khóa không cần khớp tuyệt đối. */
+function botNormalize(text){
+  return s(text).toLowerCase()
+    .normalize("NFD").replace(/[\u0300-\u036f]/g, "")
+    .replace(/đ/g, "d")
+    .replace(/[^a-z0-9\s]/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+function botCompact(text){ return botNormalize(text).replace(/\s+/g, ""); }
+
+function botLevenshtein(a,b){
+  a=botCompact(a); b=botCompact(b);
+  if(a===b) return 0;
+  if(!a) return b.length;
+  if(!b) return a.length;
+  var prev=[],cur=[],i,j;
+  for(j=0;j<=b.length;j++) prev[j]=j;
+  for(i=1;i<=a.length;i++){
+    cur[0]=i;
+    for(j=1;j<=b.length;j++){
+      var cost=a.charAt(i-1)===b.charAt(j-1)?0:1;
+      cur[j]=Math.min(cur[j-1]+1,prev[j]+1,prev[j-1]+cost);
+    }
+    var tmp=prev; prev=cur; cur=tmp;
+  }
+  return prev[b.length];
+}
+
+/* Kiểm tra câu người dùng có chứa từ khóa, kể cả sai nhẹ chính tả. */
+function botKeywordMatch(text, keyword){
+  var t=botNormalize(text), k=botNormalize(keyword);
+  if(!t || !k) return 0;
+  var tc=botCompact(t), kc=botCompact(k);
+
+  /* Khớp nguyên cụm: "cho mình hỏi bảo hành" -> "bảo hành" */
+  if(t.indexOf(k)!==-1 || tc.indexOf(kc)!==-1) return 1;
+
+  var kwWords=k.split(" ");
+  var textWords=t.split(" ");
+  var matched=0;
+  kwWords.forEach(function(kw){
+    if(!kw) return;
+    var found=false;
+    for(var i=0;i<textWords.length;i++){
+      var tw=textWords[i];
+      if(tw===kw || tw.indexOf(kw)!==-1 || kw.indexOf(tw)!==-1){ found=true; break; }
+      var maxLen=Math.max(tw.length,kw.length);
+      var sim=1-(botLevenshtein(tw,kw)/maxLen);
+      /* Từ càng dài càng cho phép sai chính tả nhẹ. */
+      if((kw.length<=4 && sim>=0.75) || (kw.length>4 && sim>=0.68)){ found=true; break; }
+    }
+    if(found) matched++;
+  });
+
+  if(kwWords.length===1) return matched?0.9:0;
+  if(matched===kwWords.length) return 0.92;
+  if(matched>=Math.ceil(kwWords.length*0.6)) return 0.72;
+  return 0;
+}
+
 function botFindAnswer(text){
-  var t = s(text).toLowerCase();
-  for (var i=0;i<BOT_KB.length;i++){
-    var item = BOT_KB[i];
-    for (var j=0;j<item.kws.length;j++){
-      if (t.indexOf(item.kws[j]) !== -1) return item.a;
+  var raw=s(text).trim();
+  if(!raw) return BOT_FALLBACK;
+  var bestAnswer=null,bestScore=0;
+
+  for(var i=0;i<BOT_KB.length;i++){
+    var item=BOT_KB[i];
+    for(var j=0;j<item.kws.length;j++){
+      var score=botKeywordMatch(raw,item.kws[j]);
+      if(score>bestScore){
+        bestScore=score;
+        bestAnswer=item.a;
+      }
+      /* Khớp rõ ràng thì trả lời ngay, không cần kiểm tra thêm. */
+      if(score>=0.9) return item.a;
     }
   }
-  return BOT_FALLBACK;
+
+  /* Chỉ fallback khi thực sự không có từ khóa phù hợp. */
+  return bestAnswer || BOT_FALLBACK;
 }
+
 async function loadBotKB(){
   try{
-    var data = await fetchJ(withTs(API_BOT));
-    if(!Array.isArray(data)) return;
-    var sheetKB = data.map(function(item){
-      var kwRaw = s(Array.isArray(item) ? item[0] : (item.tukhoa || item.TuKhoa || item.keywords));
-      var ans   = s(Array.isArray(item) ? item[1] : (item.traloi || item.TraLoi || item.answer));
-      var kws = kwRaw.split(/[;,]/).map(function(k){ return k.trim().toLowerCase(); }).filter(Boolean);
-      return { kws: kws, a: ans };
-    }).filter(function(x){ return x.kws.length && x.a; });
-    BOT_KB = sheetKB;
-  }catch(e){ /* Không tải được sheet -> BOT_KB rỗng, mọi câu hỏi trả về BOT_FALLBACK */ }
+    var data=await fetchJ(withTs(API_BOT));
+    if(!Array.isArray(data)){
+      console.warn("API_BOT không trả về mảng",data);
+      return false;
+    }
+    var sheetKB=data.map(function(item){
+      var kwRaw=s(Array.isArray(item)?item[0]:(item.tukhoa||item.TuKhoa||item.keywords));
+      var ans=s(Array.isArray(item)?item[1]:(item.traloi||item.TraLoi||item.answer));
+      var kws=kwRaw.split(/[;,]/).map(function(k){return k.trim();}).filter(Boolean);
+      return {kws:kws,a:ans};
+    }).filter(function(x){return x.kws.length&&x.a;});
+    BOT_KB=sheetKB;
+    console.log("Chatbot đã tải",BOT_KB.length,"dòng từ khóa");
+    return BOT_KB.length>0;
+  }catch(e){
+    console.warn("Không tải được API_BOT",e);
+    return false;
+  }
 }
+
 function botAddMsg(text, who){
   var body = $("botBody"); if(!body) return;
   var div = document.createElement("div");
@@ -402,8 +485,19 @@ function botReply(userText){
 function initBot(){
   var fab = $("botFab"), panel = $("botPanel"), close = $("botClose"), input = $("botInput"), send = $("botSend");
   if(!fab || !panel) return;
-  loadBotKB();
   var greeted = false;
+  var botReady = false;
+  loadBotKB().then(function(ok){
+    botReady = ok;
+    if(input){
+      input.disabled = false;
+      input.placeholder = ok ? "Nhập câu hỏi..." : "Chatbot đang kết nối lại...";
+    }
+  });
+  if(input){
+    input.disabled = true;
+    input.placeholder = "Đang tải dữ liệu chatbot...";
+  }
   function openPanel(){
     panel.classList.add("open");
     fab.classList.add("hidden");
@@ -414,6 +508,10 @@ function initBot(){
   fab.addEventListener("click", openPanel);
   close.addEventListener("click", closePanel);
   function submitInput(){
+    if(!botReady){
+      botAddMsg("Chatbot đang tải dữ liệu, bạn chờ một chút rồi gửi lại nhé!", "bot");
+      return;
+    }
     var v = s(input.value).trim();
     if(!v) return;
     input.value = "";
