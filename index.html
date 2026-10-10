@@ -69,6 +69,21 @@
 
 <div id="__app_root"></div>
 
+<!-- Lớp an toàn: nếu script chính lỗi thì vẫn tắt màn hình loading sau 8 giây -->
+<script>
+(function(){
+  function killPreload(){
+    var pl=document.getElementById("preLoad");
+    if(!pl) return;
+    pl.style.transition="opacity .45s ease";
+    pl.style.opacity="0";
+    setTimeout(function(){ if(pl.parentNode) pl.parentNode.removeChild(pl); },480);
+  }
+  setTimeout(killPreload, 8000);
+  window.addEventListener("error", function(){ setTimeout(killPreload, 1500); });
+})();
+</script>
+
 <script>
 (function(){
 "use strict";
@@ -194,7 +209,8 @@ function normalizeType(v){ var t=s(v).trim().toLowerCase(); return ["poster","po
 function formatDate(v){ if(!v) return ""; var str=s(v).trim(); if(/^\d{1,2}\/\d{1,2}\/\d{4}$/.test(str)) return str; var d=new Date(str); if(!isNaN(d)&&d.getFullYear()>2000) return ("0"+d.getDate()).slice(-2)+"/"+("0"+(d.getMonth()+1)).slice(-2)+"/"+d.getFullYear(); return str; }
 function parseItem(item,fallback){ if(Array.isArray(item)) return {ten:s(item[0]),mota:s(item[1]),ngay:formatDate(s(item[2])),anh:s(item[3]),loai:normalizeType(item[4]||fallback)}; return {ten:s(item&&item.ten),mota:s(item&&item.mota),ngay:formatDate(s(item&&(item.ngaycapnhat||item.gia))),anh:s(item&&item.anh),loai:normalizeType(item&&item.loai||fallback)}; }
 function parseImgs(anh){ return s(anh).split(";").map(function(x){return x.trim();}).filter(Boolean).filter(isUrl); }
-function withTs(url){ return url+(url.includes("?")?"&regions":"?")+"t="+Date.now(); }
+/* ĐÃ SỬA: trước đây là "&regions" làm hỏng tham số t= */
+function withTs(url){ return url+(url.includes("?")?"&":"?")+"t="+Date.now(); }
 
 async function fetchJ(url,ms){ ms=ms||12000; var ctrl=new AbortController(),t=setTimeout(function(){ctrl.abort();},ms); try{ var r=await fetch(url,{cache:"no-store",signal:ctrl.signal}); if(!r.ok) throw new Error("HTTP "+r.status); return await r.json(); }finally{ clearTimeout(t); } }
 
@@ -203,7 +219,15 @@ function hideBoot(){ var pl=$("preLoad"); if(!pl) return; pl.style.transition="o
 async function finishBoot(){ var elapsed=performance.now()-bootStart; if(elapsed<BOOT_MIN) await wait(BOOT_MIN-elapsed); hideBoot(); }
 function setPill(state){ var p=$("apiPill"),t=$("apiPillText"); if(!p||!t) return; p.className="hero-pill"; if(state==="ok"){p.classList.add("ok");t.textContent="API hoạt động";}else if(state==="err"){p.classList.add("warn");t.textContent="API lỗi";}else t.textContent="Đang kiểm tra…"; }
 
-function filtered(){ var q=s($("searchQ").value).trim().toLowerCase(); return allItems.map(function(sp,i){return {sp:sp,i:i};}).filter(function(x){return normalizeType(x.sp.loai)===activeType;}).filter(function(x){return !q||(s(x.sp.ten)+" "+s(x.sp.mota)).toLowerCase().includes(q);}).map(function(x);return x.i; }); }
+/* ĐÃ SỬA: trước đây là .map(function(x);return x.i; }) -> SyntaxError làm chết cả script */
+function filtered(){
+  var q=s($("searchQ").value).trim().toLowerCase();
+  return allItems
+    .map(function(sp,i){return {sp:sp,i:i};})
+    .filter(function(x){return normalizeType(x.sp.loai)===activeType;})
+    .filter(function(x){return !q||(s(x.sp.ten)+" "+s(x.sp.mota)).toLowerCase().includes(q);})
+    .map(function(x){return x.i;});
+}
 
 function renderGrid(){
   var grid=$("grid"); if(!grid) return;
@@ -248,7 +272,7 @@ async function load(){
   try{
     var r=await fetchItems();
     allItems=r.items;
-    setPill("ok");
+    setPill(r.complete?"ok":"err");
     renderGrid();
   }catch(err){
     setPill("err");
@@ -321,7 +345,7 @@ function checkUserIpBlocked(){
 
 function triggerBlock24h(){
   var blockTime = Date.now() + (24 * 60 * 60 * 1000);
-  localStorage.setItem("tp_ip_blocked_until", blockTime);
+  try { localStorage.setItem("tp_ip_blocked_until", blockTime); } catch(e) {}
   var input = $("botInput"), send = $("botSend");
   if(input) { input.disabled = true; input.placeholder = "Đã bị tạm khóa."; }
   if(send) send.disabled = true;
@@ -381,6 +405,7 @@ function bindEvents(){
       activeType = a.dataset.nav || "powerpoint";
       document.querySelectorAll("[data-nav]").forEach(function(x){x.classList.remove("active");});
       a.classList.add("active");
+      document.querySelectorAll(".type-btn").forEach(function(x){x.classList.toggle("active", x.dataset.type===activeType);});
       renderGrid();
     });
   });
@@ -392,6 +417,12 @@ function bindEvents(){
     updateModalImg();
     renderThumbs();
     setModal(true);
+  });
+  $("btnReload").addEventListener("click", async function(){
+    var wrap=$("gridWrap"), btn=$("btnReload");
+    btn.disabled=true; wrap.classList.add("refreshing");
+    try{ var r=await fetchItems(); allItems=r.items; setPill(r.complete?"ok":"err"); renderGrid(); }catch(e){ setPill("err"); }
+    wrap.classList.remove("refreshing"); btn.disabled=false;
   });
 }
 
