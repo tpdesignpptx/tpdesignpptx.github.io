@@ -21,11 +21,12 @@
   <meta property="og:url" content="https://tpdesignpptx.github.io/">
   <meta property="og:title" content="TP DESIGN PPTX — Mẫu PowerPoint & Poster Đẹp">
   <meta property="og:description" content="Kho mẫu PowerPoint và Poster đẹp, chuyên nghiệp cho học sinh, sinh viên và giáo viên.">
-  <meta property="og:image" content="https://i.ibb.co/pvb695kf/695f34ef-8203-4adf-bb18-6c28b8f0dd70.png">
+  <meta property="og:image" content="https://i.ibb.co/mC7tWqp7/F0-B32-A25-E4-D7-4-AAF-85-D0-A13-B80037851.png">
   <meta property="og:locale" content="vi_VN">
   <meta property="og:site_name" content="TP DESIGN PPTX">
-  <link rel="icon" href="https://i.ibb.co/pvb695kf/695f34ef-8203-4adf-bb18-6c28b8f0dd70.png" type="image/png">
-  <link rel="apple-touch-icon" href="https://i.ibb.co/pvb695kf/695f34ef-8203-4adf-bb18-6c28b8f0dd70.png">
+  <!-- Favicon chuẩn của website -->
+  <link rel="icon" href="https://i.ibb.co/mC7tWqp7/F0-B32-A25-E4-D7-4-AAF-85-D0-A13-B80037851.png" type="image/png">
+  <link rel="apple-touch-icon" href="https://i.ibb.co/mC7tWqp7/F0-B32-A25-E4-D7-4-AAF-85-D0-A13-B80037851.png">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@400;500;600;700;800&display=swap" rel="stylesheet">
@@ -51,7 +52,7 @@
 
 <div class="pre-load" id="preLoad">
   <div class="pre-load-inner">
-    <img class="pre-load-logo" src="https://i.ibb.co/pvb695kf/695f34ef-8203-4adf-bb18-6c28b8f0dd70.png" alt="TP DESIGN PPTX">
+    <img class="pre-load-logo" src="https://i.ibb.co/mC7tWqp7/F0-B32-A25-E4-D7-4-AAF-85-D0-A13-B80037851.png" alt="TP DESIGN PPTX">
     <div class="pre-load-name">TP DESIGN PPTX</div>
     <div class="pre-load-sub" id="bootText">Slide xịn · Học đỉnh · Điểm cao</div>
     <div class="pre-dots"><span></span><span></span><span></span></div>
@@ -129,13 +130,14 @@ style.textContent = [
 ].join("\n");
 document.head.appendChild(style);
 
-/* Thay thế đường link ảnh avatar mới yêu cầu */
+/* Đường dẫn logo website gốc và ảnh đại diện chatbot riêng biệt */
+var WEB_LOGO_SRC = "https://i.ibb.co/mC7tWqp7/F0-B32-A25-E4-D7-4-AAF-85-D0-A13-B80037851.png";
 var BOT_AVATAR_SRC = "https://i.ibb.co/pvb695kf/695f34ef-8203-4adf-bb18-6c28b8f0dd70.png";
 
 function buildHTML(){
   var root = document.getElementById("__app_root");
   root.innerHTML = [
-    '<header class="site-header"><div class="wrap header-inner"><a class="brand" href="#top"><img class="brand-logo" src="' + BOT_AVATAR_SRC + '" alt="Logo"><div><div class="brand-name">TP DESIGN PPTX</div><div class="brand-sub">Slide xịn · Học đỉnh · Điểm cao</div></div></a><nav class="nav"><a href="#gioi-thieu">Giới thiệu</a><a href="#kho" class="active">Kho mẫu</a></nav></div></header>',
+    '<header class="site-header"><div class="wrap header-inner"><a class="brand" href="#top"><img class="brand-logo" src="' + WEB_LOGO_SRC + '" alt="Logo"><div><div class="brand-name">TP DESIGN PPTX</div><div class="brand-sub">Slide xịn · Học đỉnh · Điểm cao</div></div></a><nav class="nav"><a href="#gioi-thieu">Giới thiệu</a><a href="#kho" class="active">Kho mẫu</a></nav></div></header>',
     '<main id="top">',
     '<section class="wrap hero" id="gioi-thieu"><div><h1 class="hero-h1">Mẫu <span class="grad">PowerPoint</span><br>& Poster đẹp</h1><p class="hero-sub">Website trưng bày mẫu thiết kế chuyên nghiệp cho học sinh, sinh viên và giáo viên.</p></div></section>',
     '<section class="wrap" id="kho"><div class="grid" id="grid"></div></section>',
@@ -223,21 +225,11 @@ function botAddTyping(){
   return div;
 }
 
-// Kiểm tra danh sách chặn IP và thời hạn chặn 24h
 async function checkUserIpBlocked(){
   try {
-    var banData = await fetchJ(withTs(API_BAN_IP));
-    // Giả lập lấy định danh hoặc sử dụng danh sách IP từ API trả về
-    // Trong thực tế, bạn có thể so sánh IP hoặc ghi nhận trực tiếp trạng thái block trên localStorage
     var blockInfo = localStorage.getItem("tp_ip_blocked_until");
     if(blockInfo && Date.now() < parseInt(blockInfo, 10)){
       return true;
-    }
-    
-    // Nếu API trả về danh sách chặn (ví dụ mảng IP hoặc danh sách từ Google Sheet)
-    if(Array.isArray(banData)){
-      // Kiểm tra nếu có cơ chế khớp IP (hoặc giả lập kích hoạt khi test từ khóa nhiều lần)
-      // Tại đây ta áp dụng logic: Nếu phát hiện vi phạm 3 lần hoặc nằm trong danh sách API_BAN_IP
     }
   } catch(e) {}
   return false;
@@ -248,16 +240,16 @@ function triggerBlock24h(){
   localStorage.setItem("tp_ip_blocked_until", blockTime);
   
   var input = $("botInput"), send = $("botSend");
-  if(input) { input.disabled = true; input.placeholder = "Đã bị chặn."; }
+  if(input) { input.disabled = true; input.placeholder = "Đã bị tạm khóa."; }
   if(send) send.disabled = true;
   
-  botAddMsg("Xin lỗi! Hiện tại bạn đã bị hệ thống chặn vui lòng thử lại sau 24h", "bot");
+  // Thông báo chặn chuyên nghiệp hơn
+  botAddMsg("Hệ thống tạm thời hạn chế quyền truy cập của bạn do vi phạm tiêu chuẩn cộng đồng. Vui lòng quay lại sau 24 giờ.", "bot");
 }
 
 function botReply(userText){
   botAddMsg(userText, "user");
   
-  // Kiểm tra thời hạn chặn 24h trước mỗi tin nhắn
   checkUserIpBlocked().then(function(isBlocked){
     if(isBlocked){
       triggerBlock24h();
@@ -265,7 +257,6 @@ function botReply(userText){
     }
 
     if(isSensitiveContent(userText)){
-      // Vi phạm từ ngữ nhạy cảm / chửi thề -> Kích hoạt chặn 24h ngay lập tức theo yêu cầu
       triggerBlock24h();
       return;
     }
@@ -285,7 +276,6 @@ function initBot(){
 
   loadBotKB();
   
-  // Kiểm tra ngay khi mở trang xem có đang trong thời gian bị phạt chặn 24h không
   checkUserIpBlocked().then(function(isBlocked){
     if(isBlocked){
       triggerBlock24h();
