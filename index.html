@@ -93,7 +93,9 @@
 var API_PPT      = "https://script.google.com/macros/s/AKfycbwyE-DhPgeHFPOSUCdpsPiP_jQg2n-dELsLtfUl-wJPl4i09kwpyFstU56416RtlsNQ/exec";
 var API_POSTER   = "https://script.google.com/macros/s/AKfycbw30E_ggfO2Or2AxpAlPg2QPzwNhRevEa1BVjVn0lSb8h-DOe3Hb5LsU63hW1pYWC51/exec";
 var API_RESOURCE = "https://script.google.com/macros/s/AKfycbzxTN_uIp4B929Gq-NII7kdq5LlvkvKZZslPJytmutHauDbBmoc7u9sGoBEsdTKc9WIpA/exec";
-var API_BOT       = "https://script.google.com/macros/s/AKfycbzNIpPoXwMFirgBdmsbIamLKWVuh7ulukhzJsj9vut96n8aDN4hpbdopCOk4dxyTyMS/exec";
+var API_BOT      = "https://script.google.com/macros/s/AKfycbzNIpPoXwMFirgBdmsbIamLKWVuh7ulukhzJsj9vut96n8aDN4hpbdopCOk4dxyTyMS/exec";
+var API_BAN_IP   = "https://script.google.com/macros/s/AKfycbxCtE1_UUnEdsZ7WLB2OIOoxOMxoGkfl7MLsVTd3YH24fNUVmxlDntKvdsmUnQX6pjw/exec";
+
 var BOOT_MIN   = 1500;
 var bootStart  = performance.now();
 
@@ -183,7 +185,8 @@ style.textContent = [
 ].join("\n");
 document.head.appendChild(style);
 
-var BOT_AVATAR_SRC = "data:image/webp;base64,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";
+/* Thay thế link logo/avatar trực tiếp bên dưới để không bị lỗi ảnh trống */
+var BOT_AVATAR_SRC = "https://i.ibb.co/mC7tWqp7/F0-B32-A25-E4-D7-4-AAF-85-D0-A13-B80037851.png";
 
 function buildHTML(){
   var root = document.getElementById("__app_root");
@@ -407,14 +410,25 @@ function bindEvents(){
 
 function loadDMCA(){ var sc=document.createElement("script");sc.src="https://images.dmca.com/Badges/DMCABadgeHelper.min.js";sc.defer=true;document.body.appendChild(sc); }
 
-/* ===== Chatbot: kiến thức hỗ trợ — CHỈ lấy dữ liệu từ Google Sheet (API_BOT) ===== */
+/* ===== Chatbot & Kiểm tra danh sách chặn IP/Nội dung ===== */// Thêm danh sách chặn từ API
+var bannedIpList = [];
+async function checkBannedIp() {
+  try {
+    var data = await fetchJ(withTs(API_BAN_IP));
+    if (Array.isArray(data)) {
+      bannedIpList = data.map(function(item) { return s(Array.isArray(item)?item[0]:(item.ip||item.IP)).trim(); }).filter(Boolean);
+    }
+  } catch(e) {
+    console.warn("Không tải được danh sách chặn IP", e);
+  }
+}
+
 var BOT_ZALO = "https://zalo.me/84773181186";
 var BOT_EMAIL = "dphu7819@gmail.com";
 var BOT_GREETING = "Xin chào! 😊 Mình là trợ lý ảo, mình có thể giúp gì cho bạn nè? ✨";
 var BOT_FALLBACK = "Mình chưa tìm thấy câu trả lời phù hợp 🤔. Bạn thử nhập câu hỏi gần giống hoặc ngắn gọn hơn nhé!";
 var BOT_KB = [];
 
-/* Chuẩn hóa tiếng Việt để từ khóa không cần khớp tuyệt đối. */
 function botNormalize(text){
   return s(text).toLowerCase()
     .normalize("NFD").replace(/[\u0300-\u036f]/g, "")
@@ -443,21 +457,19 @@ function botLevenshtein(a,b){
   return prev[b.length];
 }
 
-/* Kiểm tra từ khóa hoặc nội dung nhạy cảm (chửi thề, dâm dục, chính trị) */
 function isSensitiveContent(text){
   var lower = botNormalize(text);
   var sensitiveKeywords = [
     /* Chửi thề / Thô tục */
     "dm", "dcm", "vcl", "vl", "cc", "cl", "vãi", "cứt", "địt", "đụ", "cu", "lồn", "cặc", "chó", "ngu",
     /* Dâm dục / 18+ */
-    "sex", "dam", "18+", "khieu dam", "loa the", "khêu gợi", "goi duc", "quan he", "thu dâm",
+    "sex", "dam", "18+", "khieu dam", "loa the", "khêu gợi", "goi duc", "quan he", "thu dam",
     /* Chính trị */
-    "chinh tri", "dang", "bau cu", "bieu tinh", "phan dong", "cach mang", "nha nuoc", "chinh phu", "bieu tinh"
+    "chinh tri", "dang", "bau cu", "bieu tinh", "phan dong", "cach mang", "nha nuoc", "chinh phu"
   ];
 
   for(var i=0; i<sensitiveKeywords.length; i++){
     var kw = sensitiveKeywords[i];
-    /* Kiểm tra từ đứng độc lập hoặc là một phần của câu */
     var regex = new RegExp("(^|\\s)" + kw + "(\\s|$)", "i");
     if(lower.indexOf(kw) !== -1 || regex.test(lower)){
       return true;
@@ -529,7 +541,6 @@ async function loadBotKB(){
       return {kws:kws,a:ans};
     }).filter(function(x){return x.kws.length&&x.a;});
     BOT_KB=sheetKB;
-    console.log("Chatbot đã tải",BOT_KB.length,"dòng từ khóa");
     return BOT_KB.length>0;
   }catch(e){
     console.warn("Không tải được API_BOT",e);
@@ -578,7 +589,6 @@ function botReply(userText){
   setTimeout(function(){
     if (typing && typing.parentNode) typing.parentNode.removeChild(typing);
     
-    // Kiểm tra nếu có từ ngữ nhạy cảm / chửi thề / chính trị
     if(isSensitiveContent(userText)){
       botAddWarningMsg("Tin nhắn của bạn chứa từ ngữ không phù hợp (chửi thề, nội dung nhạy cảm hoặc chính trị). Vui lòng sử dụng ngôn từ lịch sự khi trò chuyện!");
       return;
@@ -633,6 +643,7 @@ buildHTML();
 bindEvents();
 load(false).then(function(){ initWelcome(); });
 loadRes(false);
+checkBannedIp();
 (window.requestIdleCallback||function(f){setTimeout(f,800);})(function(){ initBot(); loadDMCA(); },{timeout:2000});
 
 })();
