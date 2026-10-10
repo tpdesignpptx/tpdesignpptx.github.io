@@ -94,7 +94,7 @@ var API_PPT      = "https://script.google.com/macros/s/AKfycbwyE-DhPgeHFPOSUCdps
 var API_POSTER   = "https://script.google.com/macros/s/AKfycbw30E_ggfO2Or2AxpAlPg2QPzwNhRevEa1BVjVn0lSb8h-DOe3Hb5LsU63hW1pYWC51/exec";
 var API_RESOURCE = "https://script.google.com/macros/s/AKfycbzxTN_uIp4B929Gq-NII7kdq5LlvkvKZZslPJytmutHauDbBmoc7u9sGoBEsdTKc9WIpA/exec";
 var API_BOT       = "https://script.google.com/macros/s/AKfycbzNIpPoXwMFirgBdmsbIamLKWVuh7ulukhzJsj9vut96n8aDN4hpbdopCOk4dxyTyMS/exec";
-var API_BAN_IP   = "https://script.google.com/macros/s/AKfycbzO7soVLPQiCANHtc_wVO9zc4RFCxPQ--13xsbp9rsAGT6xVP2dpOMjYHu9yjJ1Y4XM/exec";
+var API_BAN_IP   = "https://script.google.com/macros/s/AKfycbxZdfk2QedkrLYgMQcLgjZydjJPXpI5fsR5TskuwZfemXf0v1wgvEKeoZ3h42pdt7p1/exec";
 var BOOT_MIN   = 1500;
 var bootStart  = performance.now();
 
@@ -550,6 +550,7 @@ function botAddTyping(){
 }
 /* ===== Bộ lọc nội dung + khóa chatbot 24 giờ (ghi IP vào Google Sheet) ===== */
 var BOT_BLOCK_KEY = "tp_chat_block_until";
+var BOT_BLOCK_IP_KEY = "tp_chat_block_ip";   /* IP đã được ghi lên Sheet (dùng để đồng bộ khi bạn gỡ chặn) */
 var BOT_BLOCK_MS  = 24*60*60*1000;
 /* Từ khóa so khớp theo dạng KHÔNG dấu, chỉ khớp nguyên từ/cụm từ (không khớp nửa chừng như "cho", "người", "đảm bảo"). */
 var BOT_BAD_PLAIN = ["dm","dmm","dcm","dcmm","vcl","vkl","vl","cc","cl","clgt","dit","dit me","sex","porn","xxx","chinh tri"];
@@ -592,8 +593,9 @@ function botApplyLock(until){
   var ms = Math.max(1000, Math.min(until - Date.now(), 2147483000));
   botUnlockTimer = setTimeout(botReleaseLock, ms);
 }
+function botStoredIP(){ try{ return s(localStorage.getItem(BOT_BLOCK_IP_KEY)); }catch(e){ return ""; } }
 function botReleaseLock(){
-  try{ localStorage.removeItem(BOT_BLOCK_KEY); }catch(e){}
+  try{ localStorage.removeItem(BOT_BLOCK_KEY); localStorage.removeItem(BOT_BLOCK_IP_KEY); }catch(e){}
   var panel=$("botPanel"), lock=$("botLock"), input=$("botInput"), send=$("botSend");
   if(panel) panel.classList.remove("locked");
   if(lock) lock.classList.remove("show");
@@ -617,19 +619,28 @@ async function botTriggerBlock(text){
   botApplyLock(until);            /* khóa ngay lập tức, không chờ mạng */
   var ip = await botGetIP();
   var res = await botReportBan(ip, text);
+  if(res && res.ok && ip){ try{ localStorage.setItem(BOT_BLOCK_IP_KEY, ip); }catch(e){} }
   var srv = res && Number(res.until);
   if(srv && srv > Date.now() && Math.abs(srv - until) > 60000){ botSaveBlock(srv); botApplyLock(srv); }
 }
 
-/* Đồng bộ trạng thái chặn theo IP từ Sheet (phòng trường hợp xóa dữ liệu trình duyệt / dùng tab ẩn danh). */
+/* Đồng bộ với Sheet: chặn theo IP nếu Sheet đang chặn; tự mở khóa nếu bạn đã gỡ chặn / xóa dòng trong Sheet. */
 async function botSyncBan(){
   if(botSynced) return; botSynced = true;
   try{
-    var ip = await botGetIP();
+    var stored = botStoredIP();
+    var ip = stored || await botGetIP();
     if(!ip) return;
     var r = await fetchJ(withTs(API_BAN_IP) + "&action=check&ip=" + encodeURIComponent(ip), 8000);
-    var until = r && r.blocked ? Number(r.until) : 0;
-    if(until && until > Date.now()){ botSaveBlock(until); botApplyLock(until); }
+    if(!r || !r.ok) return;
+    var until = r.blocked ? Number(r.until) : 0;
+    if(until && until > Date.now()){
+      botSaveBlock(until);
+      try{ localStorage.setItem(BOT_BLOCK_IP_KEY, ip); }catch(e){}
+      botApplyLock(until);
+    }else if(stored){
+      botReleaseLock();   /* Sheet không còn chặn IP này */
+    }
   }catch(e){}
 }
 
@@ -658,12 +669,13 @@ function initBot(){
     input.placeholder = "Đang tải dữ liệu chatbot...";
   }
   var bu = botBlockedUntil();
-  if(bu) botApplyLock(bu);
+  if(bu){ botApplyLock(bu); botSyncBan(); }
   function openPanel(){
     panel.classList.add("open");
     fab.classList.add("hidden");
     if(welcome) welcome.classList.add("hidden");
     if(!greeted){ greeted=true; botAddMsg(BOT_GREETING,"bot"); }
+    if(botBlockedUntil()) botSynced = false;   /* đang khóa -> kiểm tra lại Sheet mỗi lần mở chat */
     botSyncBan();
     setTimeout(function(){ if(input && !input.disabled) input.focus(); }, 200);
   }
