@@ -24,7 +24,6 @@
   <meta property="og:image" content="https://i.ibb.co/mC7tWqp7/F0-B32-A25-E4-D7-4-AAF-85-D0-A13-B80037851.png">
   <meta property="og:locale" content="vi_VN">
   <meta property="og:site_name" content="TP DESIGN PPTX">
-  <!-- Favicon chuẩn của website -->
   <link rel="icon" href="https://i.ibb.co/mC7tWqp7/F0-B32-A25-E4-D7-4-AAF-85-D0-A13-B80037851.png" type="image/png">
   <link rel="apple-touch-icon" href="https://i.ibb.co/mC7tWqp7/F0-B32-A25-E4-D7-4-AAF-85-D0-A13-B80037851.png">
   <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -75,75 +74,89 @@ var BOOT_MIN   = 1200;
 var bootStart  = performance.now();
 
 var allItems   = [];
-var resItems   = [];
 var activeType = "powerpoint";
 var modalImgs  = [];
 var modalIdx   = 0;
-var toastTimer = null;
-var shieldShown= false;
-var devOpen    = false;
-var selectedDevice = null;
 
 var $ = function(id){ return document.getElementById(id); };
 var s = function(v){ return v == null ? "" : String(v); };
-var wait = function(ms){ return new Promise(function(r){ setTimeout(r, ms); }); };
 var isUrl = function(u){ return /^https?:\/\//i.test(s(u).trim()); };
 var debounce = function(fn, ms){ var t; return function(){ clearTimeout(t); t = setTimeout(fn, ms); }; };
-function dropEnter(card){ card.addEventListener("animationend", function(e){ if(e.target===card) card.classList.remove("card-enter"); }); }
 
 var style = document.createElement("style");
 style.textContent = [
-':root{--bg:#060818;--bg1:#080c1f;--bg2:#0d1230;--surface:rgba(255,255,255,.04);--surface2:rgba(255,255,255,.07);--border:rgba(255,255,255,.08);--border2:rgba(255,255,255,.14);--text:#f0f2ff;--muted:rgba(240,242,255,.55);--muted2:rgba(240,242,255,.35);--accent:#6d5bff;--accent2:#00d4ff;--accent3:#ff6b9d;--good:#00e5a0;--warn:#ffb547;--danger:#ff4d6d;--shadow:0 32px 80px rgba(0,0,0,.7);--shadow2:0 8px 32px rgba(0,0,0,.4);--glow:0 0 60px rgba(109,91,255,.25);--max:1160px;--font:"Be Vietnam Pro",system-ui,sans-serif;--r:16px;--r2:24px;--r3:32px;--glass-bg:rgba(255,255,255,.06);--glass-bg2:rgba(255,255,255,.1);--glass-border:rgba(255,255,255,.3);--glass-border-dim:rgba(255,255,255,.14);--glass-blur:22px;--glass-sat:180%;--glass-spec:rgba(255,255,255,.55)}',
+':root{--bg:#060818;--surface:rgba(255,255,255,.04);--surface2:rgba(255,255,255,.07);--border:rgba(255,255,255,.08);--border2:rgba(255,255,255,.14);--text:#f0f2ff;--muted:rgba(240,242,255,.55);--muted2:rgba(240,242,255,.35);--accent:#6d5bff;--accent2:#00d4ff;--good:#00e5a0;--shadow:0 32px 80px rgba(0,0,0,.7);--max:1160px;--font:"Be Vietnam Pro",system-ui,sans-serif;--r:16px;--r2:24px;--r3:32px}',
 'a{color:inherit;text-decoration:none}.wrap{max-width:var(--max);margin:0 auto;padding:0 20px;position:relative;z-index:1}',
-'.bg-canvas{position:fixed;inset:0;z-index:0;pointer-events:none;overflow:hidden}.bg-orb{position:absolute;border-radius:50%;opacity:.2;animation:orbFloat 14s ease-in-out infinite;will-change:transform}.bg-orb1{width:700px;height:700px;background:radial-gradient(closest-side,#6d5bff,transparent);top:-15%;left:-10%}.bg-orb2{width:500px;height:500px;background:radial-gradient(closest-side,#00d4ff,transparent);top:20%;right:-10%;animation-delay:-4s}.bg-orb3{width:600px;height:600px;background:radial-gradient(closest-side,#ff6b9d,transparent);bottom:-15%;left:30%;animation-delay:-8s;opacity:.12}@keyframes orbFloat{0%,100%{transform:translate(0,0) scale(1)}33%{transform:translate(30px,-20px) scale(1.05)}66%{transform:translate(-20px,30px) scale(.97)}}.bg-grid{position:fixed;inset:0;z-index:0;pointer-events:none;opacity:.04;background-image:linear-gradient(rgba(255,255,255,.6) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,.6) 1px,transparent 1px);background-size:60px 60px;mask-image:radial-gradient(ellipse 80% 80% at 50% 0%,black 30%,transparent 100%)}',
-'.site-header{position:sticky;top:0;z-index:100;background:rgba(6,8,24,.75);backdrop-filter:blur(20px);border-bottom:1px solid var(--border)}.header-inner{display:flex;align-items:center;justify-content:space-between;gap:16px;padding:14px 0}.brand{display:flex;align-items:center;gap:11px}.brand-logo{width:40px;height:40px;border-radius:12px;object-fit:cover;border:1px solid var(--border2);background:#fff;flex-shrink:0;box-shadow:0 4px 16px rgba(109,91,255,.3)}.brand-name{font-size:16px;font-weight:800;color:var(--text);line-height:1.2}.brand-sub{font-size:10.5px;color:var(--muted);font-weight:500;margin-top:2px}.nav{display:flex;align-items:center;gap:4px}.nav a{font-size:13.5px;font-weight:500;color:var(--muted);padding:7px 13px;border-radius:999px;border:1px solid transparent;transition:all .18s ease}.nav a:hover{color:var(--text);background:var(--surface2);border-color:var(--border2)}.nav a.active{color:var(--text);background:rgba(109,91,255,.18);border-color:rgba(109,91,255,.4)}',
-'.hero{padding:60px 0 40px}.hero-inner{display:grid;grid-template-columns:1fr auto;align-items:center;gap:32px}.hero-tag{display:inline-flex;align-items:center;gap:8px;padding:6px 14px;border-radius:999px;margin-bottom:18px;background:rgba(109,91,255,.12);border:1px solid rgba(109,91,255,.3);font-size:12px;font-weight:600;color:#a78bfa}.hero-h1{font-size:clamp(34px,5vw,58px);font-weight:800;line-height:1.08;letter-spacing:-.8px;color:var(--text);margin-bottom:18px}.hero-h1 .grad{background:linear-gradient(135deg,#a78bfa 0%,#38bdf8 50%,#f0abfc 100%);-webkit-background-clip:text;background-clip:text;color:transparent}.hero-sub{font-size:15.5px;color:var(--muted);line-height:1.75;max-width:50ch;margin-bottom:30px}.hero-stats{display:flex;gap:24px;flex-wrap:wrap}.stat{display:flex;flex-direction:column;gap:2px}.stat-num{font-size:22px;font-weight:800;color:var(--text)}.stat-lbl{font-size:11.5px;color:var(--muted2);font-weight:500}',
+'.bg-canvas{position:fixed;inset:0;z-index:0;pointer-events:none;overflow:hidden}.bg-orb{position:absolute;border-radius:50%;opacity:.2;animation:orbFloat 14s ease-in-out infinite}.bg-orb1{width:700px;height:700px;background:radial-gradient(closest-side,#6d5bff,transparent);top:-15%;left:-10%}.bg-orb2{width:500px;height:500px;background:radial-gradient(closest-side,#00d4ff,transparent);top:20%;right:-10%}@keyframes orbFloat{0%,100%{transform:translate(0,0) scale(1)}50%{transform:translate(20px,-20px) scale(1.03)}}',
+'.site-header{position:sticky;top:0;z-index:100;background:rgba(6,8,24,.85);backdrop-filter:blur(20px);border-bottom:1px solid var(--border)}.header-inner{display:flex;align-items:center;justify-content:space-between;gap:16px;padding:14px 0}',
+'.brand{display:flex;align-items:center;gap:11px}.brand-logo{width:40px;height:40px;border-radius:12px;object-fit:cover;border:1px solid var(--border2);background:#fff;flex-shrink:0}',
+'.brand-name{font-size:16px;font-weight:800;color:var(--text);line-height:1.2}.brand-sub{font-size:10.5px;color:var(--muted);font-weight:500;margin-top:2px}',
+'.nav{display:flex;align-items:center;gap:4px}.nav a{font-size:13.5px;font-weight:500;color:var(--muted);padding:7px 13px;border-radius:999px;border:1px solid transparent;transition:all .18s ease}.nav a:hover{color:var(--text);background:var(--surface2)}',
+'.hero{padding:50px 0 30px}.hero-h1{font-size:clamp(32px,5vw,52px);font-weight:800;line-height:1.1;color:var(--text);margin-bottom:14px}.hero-h1 .grad{background:linear-gradient(135deg,#a78bfa,#38bdf8);-webkit-background-clip:text;background-clip:text;color:transparent}',
+'.hero-sub{font-size:15px;color:var(--muted);line-height:1.7;max-width:50ch}',
+'.catalog-header{display:flex;flex-wrap:wrap;gap:16px;align-items:flex-end;justify-content:space-between;padding:24px 0 20px;border-top:1px solid var(--border);margin-top:20px}',
+'.catalog-title-block h2{font-size:24px;font-weight:800;color:var(--text)}',
+'.catalog-controls{display:flex;gap:10px;flex-wrap:wrap;align-items:center}',
+'.type-switch{display:flex;padding:4px;border-radius:14px;background:var(--surface);border:1px solid var(--border)}',
+'.type-btn{padding:8px 18px;border-radius:10px;border:0;cursor:pointer;font-family:var(--font);font-size:13px;font-weight:600;color:var(--muted);background:transparent;transition:all .2s}',
+'.type-btn.active{background:linear-gradient(135deg,#6d5bff,#00d4ff);color:#fff}',
+'.search-wrap{display:flex;align-items:center;gap:10px;padding:9px 16px;border-radius:14px;background:var(--surface);border:1px solid var(--border2);width:min(280px,100%)}',
+'.search-wrap input{width:100%;border:0;outline:none;background:transparent;color:var(--text);font-size:13px;font-family:var(--font)}',
 '.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:18px;padding-bottom:48px}',
-'.card{border-radius:var(--r2);overflow:hidden;cursor:pointer;background:var(--surface);border:1px solid var(--border);box-shadow:0 4px 24px rgba(0,0,0,.3);transition:transform .28s ease,border-color .28s ease;position:relative;display:flex;flex-direction:column}',
-'.card:hover{transform:translateY(-8px);border-color:rgba(109,91,255,.4);box-shadow:0 20px 60px rgba(0,0,0,.5)}.card-img{aspect-ratio:16/10;overflow:hidden;position:relative;flex-shrink:0;background:var(--bg2)}.card-img img{width:100%;height:100%;object-fit:cover;display:block}',
-'.card-body{padding:16px;display:flex;flex-direction:column;flex:1;gap:6px}.card-title{font-size:14.5px;font-weight:700;color:var(--text);line-height:1.4}.card-desc{font-size:13px;color:var(--muted);line-height:1.6;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;flex:1}',
+'.card{border-radius:var(--r2);overflow:hidden;cursor:pointer;background:var(--surface);border:1px solid var(--border);box-shadow:0 4px 24px rgba(0,0,0,.3);transition:transform .28s ease,border-color .28s ease;display:flex;flex-direction:column}',
+'.card:hover{transform:translateY(-6px);border-color:rgba(109,91,255,.4)}',
+'.card-img{aspect-ratio:16/10;overflow:hidden;position:relative;background:var(--bg2)}.card-img img{width:100%;height:100%;object-fit:cover;display:block}',
+'.card-body{padding:16px;display:flex;flex-direction:column;flex:1;gap:6px}.card-title{font-size:14.5px;font-weight:700;color:var(--text);line-height:1.4}',
+'.card-desc{font-size:13px;color:var(--muted);line-height:1.6;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}',
+'.empty-state{grid-column:1/-1;text-align:center;padding:64px 20px;color:var(--muted);font-size:14px}.empty-state h3{font-size:20px;color:var(--text);margin-bottom:6px}',
 'img{-webkit-user-select:none;user-select:none}',
-/* ===== Chatbot widget ===== */
-'.bot-fab{position:fixed;right:20px;bottom:20px;z-index:150;width:64px;height:64px;border-radius:50%;border:1px solid var(--glass-border);background:linear-gradient(160deg,rgba(109,91,255,.55),rgba(0,212,255,.35));box-shadow:0 12px 34px rgba(109,91,255,.4);cursor:pointer;display:flex;align-items:center;justify-content:center;transition:transform .2s}',
-'.bot-fab:hover{transform:scale(1.07)}.bot-fab-img{width:100%;height:100%;object-fit:cover;border-radius:50%;display:block}',
-'.bot-panel{position:fixed;right:20px;bottom:96px;z-index:151;width:min(360px,calc(100vw - 32px));max-height:min(70vh,560px);display:flex;flex-direction:column;border-radius:var(--r2);overflow:hidden;background:rgba(14,16,36,.97);border:1px solid var(--border2);box-shadow:var(--shadow);opacity:0;pointer-events:none;transform:translateY(16px) scale(.97);transition:opacity .22s ease,transform .26s ease}',
+/* Modal */
+'.modal{position:fixed;inset:0;z-index:200;display:none;align-items:center;justify-content:center;padding:16px;background:rgba(0,0,0,.8);backdrop-filter:blur(10px)}.modal.open{display:flex}',
+'.modal-box{width:min(900px,100%);border-radius:var(--r2);background:rgba(14,16,36,.98);border:1px solid var(--border2);box-shadow:var(--shadow);overflow:hidden}',
+'.modal-head{display:flex;align-items:center;justify-content:space-between;padding:14px 18px;border-bottom:1px solid var(--border)}',
+'.close-btn{padding:6px 12px;border-radius:8px;border:1px solid var(--border2);background:var(--surface);color:var(--text);cursor:pointer}',
+'.modal-body{padding:16px}.modal-img-wrap img{width:100%;max-height:60vh;object-fit:contain;display:block}',
+'.modal-meta{margin-top:14px}.modal-meta h2{font-size:18px;font-weight:800;margin-bottom:6px}.modal-meta p{font-size:13px;color:var(--muted)}',
+/* Chatbot */
+'.bot-fab{position:fixed;right:20px;bottom:20px;z-index:150;width:64px;height:64px;border-radius:50%;border:1px solid var(--border2);background:linear-gradient(160deg,rgba(109,91,255,.55),rgba(0,212,255,.35));box-shadow:0 12px 34px rgba(109,91,255,.4);cursor:pointer;display:flex;align-items:center;justify-content:center}',
+'.bot-fab-img{width:100%;height:100%;object-fit:cover;border-radius:50%;display:block}',
+'.bot-panel{position:fixed;right:20px;bottom:96px;z-index:151;width:min(360px,calc(100vw - 32px));max-height:min(70vh,540px);display:flex;flex-direction:column;border-radius:var(--r2);overflow:hidden;background:rgba(14,16,36,.98);border:1px solid var(--border2);box-shadow:var(--shadow);opacity:0;pointer-events:none;transform:translateY(16px) scale(.97);transition:all .22s ease}',
 '.bot-panel.open{opacity:1;pointer-events:auto;transform:translateY(0) scale(1)}',
-'.bot-head{display:flex;align-items:center;gap:10px;padding:14px 16px;border-bottom:1px solid var(--border);background:rgba(255,255,255,.03);flex-shrink:0}',
+'.bot-head{display:flex;align-items:center;gap:10px;padding:14px 16px;border-bottom:1px solid var(--border);background:rgba(255,255,255,.03)}',
 '.bot-head-avatar{width:34px;height:34px;border-radius:50%;overflow:hidden;flex-shrink:0}',
-'.bot-head-avatar-img{width:100%;height:100%;object-fit:cover;display:block}',
+'.bot-head-avatar img{width:100%;height:100%;object-fit:cover;display:block}',
 '.bot-head-title{font-size:13.5px;font-weight:800;color:var(--text)}',
-'.bot-head-sub{font-size:11px;color:var(--good);display:flex;align-items:center;gap:5px}',
-'.bot-head-sub .dot{width:6px;height:6px;border-radius:50%;background:var(--good)}',
-'.bot-close{margin-left:auto;width:28px;height:28px;border-radius:50%;border:1px solid var(--border2);background:var(--surface);color:var(--muted);cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:13px}',
+'.bot-head-sub{font-size:11px;color:var(--good);display:flex;align-items:center;gap:5px}.bot-head-sub .dot{width:6px;height:6px;border-radius:50%;background:var(--good)}',
+'.bot-close{margin-left:auto;width:28px;height:28px;border-radius:50%;border:1px solid var(--border2);background:var(--surface);color:var(--muted);cursor:pointer;display:grid;place-items:center}',
 '.bot-body{flex:1;overflow-y:auto;padding:14px;display:flex;flex-direction:column;gap:10px}',
 '.bot-msg{max-width:84%;padding:10px 13px;border-radius:14px;font-size:12.8px;line-height:1.55}',
 '.bot-msg.bot{align-self:flex-start;background:rgba(255,255,255,.07);border:1px solid var(--border);color:var(--text);border-bottom-left-radius:4px}',
 '.bot-msg.user{align-self:flex-end;background:linear-gradient(135deg,#6d5bff,#00d4ff);color:#fff;font-weight:500;border-bottom-right-radius:4px}',
-'.bot-input-wrap{display:flex;gap:8px;padding:12px 14px;border-top:1px solid var(--border);background:#0c0e1f;flex-shrink:0}',
+'.bot-input-wrap{display:flex;gap:8px;padding:12px 14px;border-top:1px solid var(--border);background:#0c0e1f}',
 '.bot-input-wrap input{flex:1;border:0;outline:none;background:rgba(255,255,255,.06);border-radius:999px;padding:9px 14px;font-size:12.5px;color:var(--text);font-family:var(--font)}',
-'.bot-send{width:36px;height:36px;border-radius:50%;border:0;flex-shrink:0;cursor:pointer;background:linear-gradient(135deg,#6d5bff,#00d4ff);color:#fff;display:flex;align-items:center;justify-content:center}',
+'.bot-send{width:36px;height:36px;border-radius:50%;border:0;flex-shrink:0;cursor:pointer;background:linear-gradient(135deg,#6d5bff,#00d4ff);color:#fff;display:grid;place-items:center}',
 '.bot-typing{align-self:flex-start;display:flex;gap:4px;padding:10px 13px;border-radius:14px;background:rgba(255,255,255,.07);border:1px solid var(--border)}',
 '.bot-typing span{width:6px;height:6px;border-radius:50%;background:var(--muted);animation:botTyping 1.1s infinite}',
-'.bot-typing span:nth-child(2){animation-delay:.15s}',
-'.bot-typing span:nth-child(3){animation-delay:.3s}',
+'.bot-typing span:nth-child(2){animation-delay:.15s}.bot-typing span:nth-child(3){animation-delay:.3s}',
 '@keyframes botTyping{0%,60%,100%{opacity:.3;transform:translateY(0)}30%{opacity:1;transform:translateY(-3px)}}'
 ].join("\n");
 document.head.appendChild(style);
 
-/* Đường dẫn logo website gốc và ảnh đại diện chatbot riêng biệt */
 var WEB_LOGO_SRC = "https://i.ibb.co/mC7tWqp7/F0-B32-A25-E4-D7-4-AAF-85-D0-A13-B80037851.png";
 var BOT_AVATAR_SRC = "https://i.ibb.co/pvb695kf/695f34ef-8203-4adf-bb18-6c28b8f0dd70.png";
 
 function buildHTML(){
   var root = document.getElementById("__app_root");
   root.innerHTML = [
+    '<div class="bg-canvas" aria-hidden="true"><div class="bg-orb bg-orb1"></div><div class="bg-orb bg-orb2"></div></div>',
     '<header class="site-header"><div class="wrap header-inner"><a class="brand" href="#top"><img class="brand-logo" src="' + WEB_LOGO_SRC + '" alt="Logo"><div><div class="brand-name">TP DESIGN PPTX</div><div class="brand-sub">Slide xịn · Học đỉnh · Điểm cao</div></div></a><nav class="nav"><a href="#gioi-thieu">Giới thiệu</a><a href="#kho" class="active">Kho mẫu</a></nav></div></header>',
     '<main id="top">',
     '<section class="wrap hero" id="gioi-thieu"><div><h1 class="hero-h1">Mẫu <span class="grad">PowerPoint</span><br>& Poster đẹp</h1><p class="hero-sub">Website trưng bày mẫu thiết kế chuyên nghiệp cho học sinh, sinh viên và giáo viên.</p></div></section>',
-    '<section class="wrap" id="kho"><div class="grid" id="grid"></div></section>',
+    '<section class="wrap" id="kho"><div class="catalog-header"><div class="catalog-title-block"><h2 id="catalogTitle">Mẫu PowerPoint</h2></div><div class="catalog-controls"><div class="type-switch"><button class="type-btn active" data-type="powerpoint">PowerPoint</button><button class="type-btn" data-type="poster">Poster</button></div><label class="search-wrap"><input id="searchQ" type="search" placeholder="Tìm kiếm mẫu…"></label></div></div><div class="grid" id="grid"></div></section>',
     '</main>',
-    '<button class="bot-fab" id="botFab" aria-label="Mở hỗ trợ"><img class="bot-fab-img" src="' + BOT_AVATAR_SRC + '" alt="Trợ lý TP DESIGN"></button>',
-    '<div class="bot-panel" id="botPanel"><div class="bot-head"><div class="bot-head-avatar"><img class="bot-head-avatar-img" src="' + BOT_AVATAR_SRC + '" alt="Trợ lý TP DESIGN"></div><div><div class="bot-head-title">Trợ lý TP DESIGN</div><div class="bot-head-sub"><span class="dot"></span>Đang trực tuyến</div></div><button class="bot-close" id="botClose">✕</button></div><div class="bot-body" id="botBody"></div><div class="bot-input-wrap"><input id="botInput" type="text" placeholder="Nhập câu hỏi của bạn…"><button class="bot-send" id="botSend">➤</button></div></div>'
+    '<div class="modal" id="modal"><div class="modal-box"><div class="modal-head"><div id="modalTitle" style="font-weight:700">Chi tiết</div><button class="close-btn" id="btnClose">✕</button></div><div class="modal-body"><div class="modal-img-wrap"><img id="mainImg" alt=""></div><div class="modal-meta"><h2 id="mTitle"></h2><p id="mDesc"></p></div></div></div></div>',
+    '<button class="bot-fab" id="botFab" aria-label="Mở hỗ trợ"><img class="bot-fab-img" src="' + BOT_AVATAR_SRC + '" alt="Trợ lý"></button>',
+    '<div class="bot-panel" id="botPanel"><div class="bot-head"><div class="bot-head-avatar"><img src="' + BOT_AVATAR_SRC + '" alt="Bot"></div><div><div class="bot-head-title">Trợ lý TP DESIGN</div><div class="bot-head-sub"><span class="dot"></span>Đang trực tuyến</div></div><button class="bot-close" id="botClose">✕</button></div><div class="bot-body" id="botBody"></div><div class="bot-input-wrap"><input id="botInput" type="text" placeholder="Nhập câu hỏi của bạn…"><button class="bot-send" id="botSend">➤</button></div></div>'
   ].join("");
 }
 
@@ -154,26 +167,71 @@ async function fetchJ(url){
 }
 function withTs(url){ return url + (url.includes("?")?"&":"?") + "t=" + Date.now(); }
 
+function normalizeType(v){ var t=s(v).trim().toLowerCase(); return ["poster","posters","mau poster","mẫu poster"].includes(t)?"poster":"powerpoint"; }
+function parseItem(item,fallback){ if(Array.isArray(item)) return {ten:s(item[0]),mota:s(item[1]),ngay:s(item[2]),anh:s(item[3]),loai:normalizeType(item[4]||fallback)}; return {ten:s(item&&item.ten),mota:s(item&&item.mota),ngay:s(item&&(item.ngaycapnhat||item.gia)),anh:s(item&&item.anh),loai:normalizeType(item&&item.loai||fallback)}; }
+function parseImgs(anh){ return s(anh).split(";").map(function(x){return x.trim();}).filter(Boolean).filter(isUrl); }
+
+function filtered(){ 
+  var q = s($("searchQ").value).trim().toLowerCase(); 
+  return allItems.map(function(sp,i){return {sp:sp,i:i};}).filter(function(x){return normalizeType(x.sp.loai)===activeType;}).filter(function(x){return !q||(s(x.sp.ten)+" "+s(x.sp.mota)).toLowerCase().includes(q);}).map(function(x){return x.i;}); 
+}
+
+function renderGrid(){
+  var grid = $("grid"); if(!grid) return;
+  grid.innerHTML="";
+  var idxs = filtered(), label = activeType==="poster"?"Poster":"PowerPoint";
+  $("catalogTitle").textContent = "Mẫu " + label;
+  if(!idxs.length){ grid.innerHTML = '<div class="empty-state"><h3>Không có dữ liệu</h3><p>Chưa có mẫu nào trong danh mục này.</p></div>'; return; }
+  
+  var frag = document.createDocumentFragment();
+  idxs.forEach(function(i){
+    var sp = allItems[i]||{}, imgs = parseImgs(sp.anh), src = imgs[0]||"https://via.placeholder.com/900x600?text=No+Image";
+    var card = document.createElement("article");
+    card.className = "card";
+    card.innerHTML = '<div class="card-img"><img src="'+src+'" alt="'+s(sp.ten)+'" loading="lazy"></div><div class="card-body"><div class="card-title">'+s(sp.ten)+'</div><div class="card-desc">'+s(sp.mota)+'</div></div>';
+    card.addEventListener("click", function(){ openModal(i); });
+    frag.appendChild(card);
+  });
+  grid.appendChild(frag);
+}
+
+function setModal(open){ var m = $("modal"); m.classList.toggle("open", open); }
+function openModal(i){
+  var sp = allItems[i]||{};
+  var imgs = parseImgs(sp.anh);
+  $("mainImg").src = imgs[0] || "";
+  $("mTitle").textContent = s(sp.ten);
+  $("mDesc").textContent = s(sp.mota);
+  setModal(true);
+}
+
+async function loadData(){
+  try{
+    var results = await Promise.allSettled([fetchJ(withTs(API_PPT)), fetchJ(withTs(API_POSTER))]);
+    var pR = results[0], poR = results[1];
+    var ppt = (pR.status==="fulfilled"?pR.value:[]).map(function(i){return parseItem(i,"powerpoint");}).filter(function(x){return x.ten||x.anh;});
+    var post = (poR.status==="fulfilled"?poR.value:[]).map(function(i){return parseItem(i,"poster");}).filter(function(x){return x.ten||x.anh;});
+    allItems = ppt.concat(post);
+    renderGrid();
+  }catch(err){
+    $("grid").innerHTML = '<div class="empty-state"><h3>Không tải được dữ liệu</h3><p>'+s(err.message)+'</p></div>';
+  }finally{
+    var pl = $("preLoad"); if(pl) pl.remove();
+  }
+}
+
+// Chatbot Logic
 var BOT_GREETING = "Xin chào! 😊 Mình là trợ lý ảo, mình có thể giúp gì cho bạn nè? ✨";
-var BOT_FALLBACK = "Mình chưa tìm thấy câu trả lời phù hợp 🤔. Bạn thử nhập câu hỏi gần giống hoặc ngắn gọn hơn nhé!";
+var BOT_FALLBACK = "Mình chưa tìm thấy câu trả lời phù hợp 🤔. Bạn thử nhập câu hỏi ngắn gọn hơn nhé!";
 var BOT_KB = [];
 
 function botNormalize(text){
-  return s(text).toLowerCase()
-    .normalize("NFD").replace(/[\u0300-\u036f]/g, "")
-    .replace(/đ/g, "d")
-    .replace(/[^a-z0-9\s]/g, " ")
-    .replace(/\s+/g, " ")
-    .trim();
+  return s(text).toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/đ/g, "d").replace(/[^a-z0-9\s]/g, " ").replace(/\s+/g, " ").trim();
 }
 
 function isSensitiveContent(text){
   var lower = botNormalize(text);
-  var sensitiveKeywords = [
-    "dm", "dcm", "vcl", "vl", "cc", "cl", "vãi", "cứt", "địt", "đụ", "cu", "lồn", "cặc", "chó", "ngu",
-    "sex", "dam", "18+", "khieu dam", "loa the", "khêu gợi", "goi duc", "quan he", "thu dam",
-    "chinh tri", "dang", "bau cu", "bieu tinh", "phan dong", "cach mang", "nha nuoc", "chinh phu"
-  ];
+  var sensitiveKeywords = ["dm", "dcm", "vcl", "vl", "cc", "cl", "vãi", "cứt", "địt", "đụ", "cu", "lồn", "cặc", "chó", "ngu", "sex", "dam", "18+", "chinh tri"];
   for(var i=0; i<sensitiveKeywords.length; i++){
     if(lower.indexOf(sensitiveKeywords[i]) !== -1) return true;
   }
@@ -196,14 +254,13 @@ function botFindAnswer(text){
 async function loadBotKB(){
   try{
     var data = await fetchJ(withTs(API_BOT));
-    if(!Array.isArray(data)) return false;
+    if(!Array.isArray(data)) return;
     BOT_KB = data.map(function(item){
       var kwRaw = s(Array.isArray(item)?item[0]:(item.tukhoa||item.TuKhoa));
       var ans = s(Array.isArray(item)?item[1]:(item.traloi||item.TraLoi));
       return {kws: kwRaw.split(/[;,]/).map(function(k){return k.trim();}).filter(Boolean), a: ans};
     }).filter(function(x){return x.kws.length && x.a;});
-    return true;
-  }catch(e){ return false; }
+  }catch(e){}
 }
 
 function botAddMsg(text, who){
@@ -215,58 +272,31 @@ function botAddMsg(text, who){
   body.scrollTop = body.scrollHeight;
 }
 
-function botAddTyping(){
-  var body = $("botBody"); if(!body) return null;
-  var div = document.createElement("div");
-  div.className = "bot-typing";
-  div.innerHTML = "<span></span><span></span><span></span>";
-  body.appendChild(div);
-  body.scrollTop = body.scrollHeight;
-  return div;
-}
-
-async function checkUserIpBlocked(){
+function checkUserIpBlocked(){
   try {
     var blockInfo = localStorage.getItem("tp_ip_blocked_until");
-    if(blockInfo && Date.now() < parseInt(blockInfo, 10)){
-      return true;
-    }
+    if(blockInfo && Date.now() < parseInt(blockInfo, 10)) return true;
   } catch(e) {}
   return false;
 }
 
 function triggerBlock24h(){
-  var blockTime = Date.now() + (24 * 60 * 60 * 1000); // 24 giờ
+  var blockTime = Date.now() + (24 * 60 * 60 * 1000);
   localStorage.setItem("tp_ip_blocked_until", blockTime);
-  
   var input = $("botInput"), send = $("botSend");
   if(input) { input.disabled = true; input.placeholder = "Đã bị tạm khóa."; }
   if(send) send.disabled = true;
-  
-  // Thông báo chặn chuyên nghiệp hơn
   botAddMsg("Hệ thống tạm thời hạn chế quyền truy cập của bạn do vi phạm tiêu chuẩn cộng đồng. Vui lòng quay lại sau 24 giờ.", "bot");
 }
 
 function botReply(userText){
   botAddMsg(userText, "user");
-  
-  checkUserIpBlocked().then(function(isBlocked){
-    if(isBlocked){
-      triggerBlock24h();
-      return;
-    }
+  if(checkUserIpBlocked()){ triggerBlock24h(); return; }
+  if(isSensitiveContent(userText)){ triggerBlock24h(); return; }
 
-    if(isSensitiveContent(userText)){
-      triggerBlock24h();
-      return;
-    }
-
-    var typing = botAddTyping();
-    setTimeout(function(){
-      if(typing && typing.parentNode) typing.parentNode.removeChild(typing);
-      botAddMsg(botFindAnswer(userText), "bot");
-    }, 400);
-  });
+  setTimeout(function(){
+    botAddMsg(botFindAnswer(userText), "bot");
+  }, 400);
 }
 
 function initBot(){
@@ -275,22 +305,14 @@ function initBot(){
   var greeted = false;
 
   loadBotKB();
-  
-  checkUserIpBlocked().then(function(isBlocked){
-    if(isBlocked){
-      triggerBlock24h();
-    }
-  });
+  if(checkUserIpBlocked()){ triggerBlock24h(); }
 
-  function openPanel(){
+  fab.addEventListener("click", function(){
     panel.classList.add("open");
     if(!greeted){ greeted=true; botAddMsg(BOT_GREETING, "bot"); }
-    setTimeout(function(){ if(input && !input.disabled) input.focus(); }, 200);
-  }
-  function closePanel(){ panel.classList.remove("open"); }
-
-  fab.addEventListener("click", openPanel);
-  close.addEventListener("click", closePanel);
+    if(input && !input.disabled) input.focus();
+  });
+  close.addEventListener("click", function(){ panel.classList.remove("open"); });
 
   function submitInput(){
     var v = s(input.value).trim();
@@ -303,7 +325,23 @@ function initBot(){
   input.addEventListener("keydown", function(e){ if(e.key === "Enter") submitInput(); });
 }
 
+function bindEvents(){
+  $("searchQ").addEventListener("input", debounce(renderGrid, 180));
+  $("btnClose").addEventListener("click", function(){ setModal(false); });
+  $("modal").addEventListener("click", function(e){ if(e.target.id==="modal") setModal(false); });
+  document.querySelectorAll(".type-btn").forEach(function(b){
+    b.addEventListener("click", function(){
+      document.querySelectorAll(".type-btn").forEach(function(x){x.classList.remove("active");});
+      b.classList.add("active");
+      activeType = b.dataset.type || "powerpoint";
+      renderGrid();
+    });
+  });
+}
+
 buildHTML();
+bindEvents();
+loadData();
 initBot();
 
 })();
