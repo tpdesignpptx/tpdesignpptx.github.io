@@ -94,7 +94,7 @@ var API_PPT      = "https://script.google.com/macros/s/AKfycbwyE-DhPgeHFPOSUCdps
 var API_POSTER   = "https://script.google.com/macros/s/AKfycbw30E_ggfO2Or2AxpAlPg2QPzwNhRevEa1BVjVn0lSb8h-DOe3Hb5LsU63hW1pYWC51/exec";
 var API_RESOURCE = "https://script.google.com/macros/s/AKfycbzxTN_uIp4B929Gq-NII7kdq5LlvkvKZZslPJytmutHauDbBmoc7u9sGoBEsdTKc9WIpA/exec";
 var API_BOT       = "https://script.google.com/macros/s/AKfycbzNIpPoXwMFirgBdmsbIamLKWVuh7ulukhzJsj9vut96n8aDN4hpbdopCOk4dxyTyMS/exec";
-var API_BAN_IP   = "https://script.google.com/macros/s/AKfycbxZdfk2QedkrLYgMQcLgjZydjJPXpI5fsR5TskuwZfemXf0v1wgvEKeoZ3h42pdt7p1/exec";
+var API_BAN_IP   = "https://script.google.com/macros/s/AKfycbxCtE1_UUnEdsZ7WLB2OIOoxOMxoGkfl7MLsVTd3YH24fNUVmxlDntKvdsmUnQX6pjw/exec";
 var BOOT_MIN   = 1500;
 var bootStart  = performance.now();
 
@@ -571,9 +571,21 @@ function botIsViolation(text){
 
 async function botGetIP(){
   if(botIP) return botIP;
-  var urls = ["https://api.ipify.org?format=json","https://api64.ipify.org?format=json"];
-  for(var i=0;i<urls.length;i++){
-    try{ var d = await fetchJ(urls[i], 5000); if(d && d.ip){ botIP = s(d.ip); return botIP; } }catch(e){}
+  var srcs = [
+    ["https://api.ipify.org?format=json","json"],
+    ["https://api64.ipify.org?format=json","json"],
+    ["https://api.ip.sb/jsonip","json"],
+    ["https://www.cloudflare.com/cdn-cgi/trace","trace"]
+  ];
+  for(var i=0;i<srcs.length;i++){
+    var ctrl = new AbortController(), t = setTimeout(function(){ ctrl.abort(); }, 5000);
+    try{
+      var r = await fetch(srcs[i][0], {cache:"no-store", signal:ctrl.signal});
+      var txt = await r.text();
+      var ip = srcs[i][1]==="json" ? s((JSON.parse(txt)||{}).ip) : s((txt.match(/^ip=(.+)$/m)||[])[1]);
+      ip = ip.trim();
+      if(ip && /^[0-9a-fA-F:.]{3,45}$/.test(ip)){ botIP = ip; return botIP; }
+    }catch(e){} finally{ clearTimeout(t); }
   }
   return "";
 }
@@ -603,25 +615,53 @@ function botReleaseLock(){
   if(send) send.disabled=false;
 }
 
-/* Báo IP + nội dung vi phạm lên Google Sheet (API_BAN_IP). Trả về {ok, until} nếu thành công. */
+/* Báo IP + nội dung vi phạm lên Google Sheet (API_BAN_IP). Trả về {ok, until} nếu Sheet xác nhận đã ghi. */
 async function botReportBan(ip, text){
+  var ctrl = new AbortController(), t = setTimeout(function(){ ctrl.abort(); }, 20000);
   try{
     var url = withTs(API_BAN_IP) + "&action=ban&ip=" + encodeURIComponent(ip || "unknown")
       + "&text=" + encodeURIComponent(s(text).slice(0,300))
       + "&ua=" + encodeURIComponent(s(navigator.userAgent).slice(0,200));
-    return await fetchJ(url, 12000);
-  }catch(e){ return null; }
+    var r = await fetch(url, {cache:"no-store", signal:ctrl.signal});
+    if(!r.ok) throw new Error("HTTP " + r.status);
+    var data = await r.json();
+    if(!data || !data.ok) throw new Error("API trả lỗi: " + (data && data.error));
+    return data;
+  }catch(e){ console.warn("[ban-ip] gửi lên Sheet thất bại:", e); return null; }
+  finally{ clearTimeout(t); }
+}
+
+/* Hàng đợi gửi lại: nếu lần đầu gửi lỗi (mạng chậm, Apps Script khởi động chậm...) thì lưu lại và gửi lại cho đến khi Sheet xác nhận. */
+var BOT_PENDING_KEY = "tp_chat_ban_pending", botFlushing = false;
+async function botFlushPending(){
+  if(botFlushing) return;
+  var pend = null;
+  try{ pend = JSON.parse(localStorage.getItem(BOT_PENDING_KEY) || "null"); }catch(e){ pend = null; }
+  if(!pend) return;
+  if(!pend.ts || Date.now() - pend.ts > BOT_BLOCK_MS){ try{ localStorage.removeItem(BOT_PENDING_KEY); }catch(e){} return; }
+  botFlushing = true;
+  try{
+    for(var attempt=0; attempt<4; attempt++){
+      var ip = await botGetIP();
+      if(!ip && attempt < 2){ await wait(2000*(attempt+1)); continue; }   /* cố lấy IP thật trước khi chịu ghi "unknown" */
+      var res = await botReportBan(ip, pend.text);
+      if(res && res.ok){
+        try{ localStorage.removeItem(BOT_PENDING_KEY); if(ip) localStorage.setItem(BOT_BLOCK_IP_KEY, ip); }catch(e){}
+        var srv = Number(res.until);
+        if(srv && srv > Date.now() && Math.abs(srv - botBlockedUntil()) > 60000){ botSaveBlock(srv); botApplyLock(srv); }
+        return;
+      }
+      await wait(2000*(attempt+1));
+    }
+  }finally{ botFlushing = false; }
 }
 
 async function botTriggerBlock(text){
   var until = Date.now() + BOT_BLOCK_MS;
   botSaveBlock(until);
   botApplyLock(until);            /* khóa ngay lập tức, không chờ mạng */
-  var ip = await botGetIP();
-  var res = await botReportBan(ip, text);
-  if(res && res.ok && ip){ try{ localStorage.setItem(BOT_BLOCK_IP_KEY, ip); }catch(e){} }
-  var srv = res && Number(res.until);
-  if(srv && srv > Date.now() && Math.abs(srv - until) > 60000){ botSaveBlock(srv); botApplyLock(srv); }
+  try{ localStorage.setItem(BOT_PENDING_KEY, JSON.stringify({text: s(text).slice(0,300), ts: Date.now()})); }catch(e){}
+  botFlushPending();
 }
 
 /* Đồng bộ với Sheet: chặn theo IP nếu Sheet đang chặn; tự mở khóa nếu bạn đã gỡ chặn / xóa dòng trong Sheet. */
@@ -669,12 +709,14 @@ function initBot(){
     input.placeholder = "Đang tải dữ liệu chatbot...";
   }
   var bu = botBlockedUntil();
+  botFlushPending();   /* gửi bù nếu lần trước ghi lên Sheet chưa thành công */
   if(bu){ botApplyLock(bu); botSyncBan(); }
   function openPanel(){
     panel.classList.add("open");
     fab.classList.add("hidden");
     if(welcome) welcome.classList.add("hidden");
     if(!greeted){ greeted=true; botAddMsg(BOT_GREETING,"bot"); }
+    botFlushPending();
     if(botBlockedUntil()) botSynced = false;   /* đang khóa -> kiểm tra lại Sheet mỗi lần mở chat */
     botSyncBan();
     setTimeout(function(){ if(input && !input.disabled) input.focus(); }, 200);
