@@ -133,13 +133,14 @@ function typing(on, steps) {
   steps = steps && steps.length ? steps : ["Đang suy nghĩ…"];
   var em = t.querySelector("em"), i = 0;
   em.textContent = steps[0];
-  if (steps.length > 1) typingTimer = setInterval(function () { i = Math.min(i + 1, steps.length - 1); em.textContent = steps[i]; }, 1600);
+  if (steps.length > 1) typingTimer = setInterval(function () { i = Math.min(i + 1, steps.length - 1); em.textContent = steps[i]; }, 6000);
   scrollEnd();
 }
 function thinkingSteps(text) {
   var n = " " + norm(text) + " ";
   var asksLock = /\s(khoa|chan|block)\s|gioi han 24|lich su chan/.test(n);
-  return ["Đang suy nghĩ…", "Đang xem xét yêu cầu…", asksLock ? "Đang tra cứu lịch sử chặn…" : "Đang tra cứu thông tin…"];
+  if (asksLock) return ["Đang tra cứu lịch sử chặn......"];
+  return ["Đang tìm kiếm kết quả tốt nhất cho bạn......", "Vẫn đang tìm, bạn chờ mình chút nhé......", "Sắp xong rồi, mình đang tổng hợp thông tin......"];
 }
 function notify() { if (!opened) $("tpcBadge").classList.add("alert"); }
 
@@ -224,7 +225,10 @@ function norm(t) { return s(t).toLowerCase().normalize("NFD").replace(/[\u0300-\
 function wantsHuman(t) { var n = " " + norm(t) + " "; return HUMAN_WORDS.some(function (w) { return n.indexOf(" " + w + " ") !== -1 || n.indexOf(" " + w + "s ") !== -1; }); }
 
 function offerHuman() {
-  if (mode === "human" || mode === "waiting" || document.querySelector(".tpc-act")) return;
+  if (mode === "human" || mode === "waiting") return;
+  /* xóa lời mời cũ (nếu còn) để luôn hiện lời mời mới ở cuối khung chat, không bao giờ im lặng */
+  var oldActs = document.querySelectorAll(".tpc-act");
+  for (var oi = 0; oi < oldActs.length; oi++) { var pm = oldActs[oi].parentNode; if (pm && pm.parentNode) pm.parentNode.removeChild(pm); }
   var el = addMsg("Bạn muốn được kết nối với nhân viên hỗ trợ đúng không? Bấm nút bên dưới để xác nhận nhé 👇", "bot");
   var row = document.createElement("div"); row.className = "tpc-act";
   var ok = document.createElement("button"); ok.className = "tpc-b"; ok.textContent = "✅ Xác nhận gặp nhân viên";
@@ -330,7 +334,7 @@ async function submit(text) {
       applyState(await api({ action: "send", sid: sid, text: text, since: since }, 20000));
     } else {
       typing(true, thinkingSteps(text));
-      var r = await api({ action: "chat", sid: sid, text: text, since: since }, 40000);
+      var r = await api({ action: "chat", sid: sid, text: text, since: since }, 65000);
       typing(false);
       if (r.reply) addMsg(r.reply, "bot");
       applyState(r);
