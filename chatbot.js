@@ -44,7 +44,8 @@ css.textContent = [
 ".tpc-act{display:flex;gap:8px;flex-wrap:wrap;margin-top:9px;white-space:normal}",
 ".tpc-b{padding:8px 13px;border-radius:999px;border:0;cursor:pointer;font:700 12px var(--font,inherit);background:linear-gradient(135deg,#6d5bff,#00d4ff);color:#fff;box-shadow:0 4px 14px rgba(109,91,255,.35)}",
 ".tpc-b.g{background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.14);color:rgba(240,242,255,.7);box-shadow:none}",
-".tpc-typing{align-self:flex-start;display:flex;gap:4px;padding:11px 13px;border-radius:14px;background:rgba(255,255,255,.07)}.tpc-typing span{width:6px;height:6px;border-radius:50%;background:rgba(240,242,255,.6);animation:tpcDot 1.1s infinite}.tpc-typing span:nth-child(2){animation-delay:.15s}.tpc-typing span:nth-child(3){animation-delay:.3s}",
+".tpc-typing{align-self:flex-start;display:flex;align-items:center;gap:4px;padding:10px 13px;border-radius:14px;background:rgba(255,255,255,.07)}.tpc-typing span{width:6px;height:6px;border-radius:50%;background:rgba(240,242,255,.6);animation:tpcDot 1.1s infinite}.tpc-typing span:nth-child(2){animation-delay:.15s}.tpc-typing span:nth-child(3){animation-delay:.3s}",
+".tpc-typing em{font-style:normal;font-size:12px;color:rgba(240,242,255,.75);margin-left:6px;animation:tpcFade .35s}",
 ".tpc-reco{display:none;align-items:center;justify-content:space-between;gap:8px;padding:9px 12px;margin:0 12px 6px;border-radius:12px;background:rgba(0,229,160,.1);border:1px solid rgba(0,229,160,.35);font-size:12px;font-weight:600;color:#00e5a0}.tpc-reco.show{display:flex}",
 ".tpc-chips{display:flex;gap:6px;flex-wrap:wrap;padding:0 12px 8px}.tpc-chips.off{display:none}",
 ".tpc-chip{padding:6px 11px;border-radius:999px;border:1px solid rgba(255,255,255,.14);background:rgba(255,255,255,.05);color:rgba(240,242,255,.8);font:600 11.5px var(--font,inherit);cursor:pointer}.tpc-chip:hover{background:rgba(109,91,255,.2);border-color:rgba(109,91,255,.5)}",
@@ -75,13 +76,14 @@ host.innerHTML =
   '<div class="tpc-chips" id="tpcChips"><button class="tpc-chip" data-q="Mẫu miễn phí tải ở đâu?">Mẫu miễn phí</button><button class="tpc-chip" data-q="Làm sao để nhận file mẫu?">Cách nhận file</button><button class="tpc-chip" data-q="Tôi muốn gặp nhân viên hỗ trợ">👤 Gặp nhân viên</button></div>' +
   '<div class="tpc-in"><input id="tpcInput" type="text" maxlength="500" placeholder="Nhập câu hỏi của bạn…" aria-label="Nhập câu hỏi" autocomplete="off"><button class="tpc-send" id="tpcSend" aria-label="Gửi"><svg width="16" height="16" viewBox="0 0 16 16" fill="none"><path d="M2 8h11M9 4l4 4-4 4" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg></button></div>' +
   '<div class="tpc-conn" id="tpcConn" role="status" aria-live="polite"><div class="tpc-conn-in"><div class="tpc-spin"></div><div class="tpc-conn-t">Đang kết nối với nhân viên<span>.</span><span>.</span><span>.</span></div><div class="tpc-queue">Số thứ tự hàng đợi của bạn<b id="tpcQ">#…</b></div><p class="tpc-conn-s">Vui lòng giữ cửa sổ này mở. Nếu chưa có nhân viên nhận, trợ lý AI sẽ hỗ trợ bạn trước.</p><button class="tpc-b g" id="tpcCancel">Hủy kết nối</button></div></div>' +
-  '<div class="tpc-lock" id="tpcLock" role="alert"><div><div style="font-size:38px">🚫</div><div style="font-size:12px;font-weight:800;letter-spacing:.8px;text-transform:uppercase;color:#ffc2cd;margin:8px 0">Tạm khóa</div><p style="font-size:13.5px;font-weight:600;line-height:1.65">Yêu cầu của bạn đã bị từ chối do không tuân thủ quy định sử dụng. Vui lòng thử lại sau 24 giờ.</p></div></div>' +
+  '<div class="tpc-lock" id="tpcLock" role="alert"><div><div style="font-size:38px">🚫</div><div style="font-size:12px;font-weight:800;letter-spacing:.8px;text-transform:uppercase;color:#ffc2cd;margin:8px 0">Tạm khóa 24 giờ</div><p style="font-size:13.5px;font-weight:600;line-height:1.65">Khung chat bị tạm khóa do tin nhắn có từ ngữ không tuân thủ quy định sử dụng (không chuẩn mực đạo đức hoặc nội dung chính trị). Vui lòng thử lại sau 24 giờ. Nếu bị khóa nhầm, hãy liên hệ Zalo 0773 181 186.</p></div></div>' +
 '</div>';
 document.body.appendChild(host);
 
 /* ---------- Trạng thái ---------- */
 var mode = "bot";            /* bot | waiting | human | fallback */
-var sid = "", since = 0, pollT = null, busy = false, connAt = 0, fbPending = false, opened = false, restored = false, online = false, lastQ = 0;
+var sid = "", since = 0, pollT = null, pollGen = 0, busy = false, connAt = 0, fbPending = false, opened = false, restored = false, online = false, lastQ = 0;
+var seenMsg = {};            /* chống hiện trùng tin nhắn theo số thứ tự từ server */
 try { sid = sessionStorage.getItem("tp_chat_sid") || ""; } catch (e) {}
 var hadSession = !!sid && (function () { try { return sessionStorage.getItem("tp_chat_used") === "1"; } catch (e) { return false; } })();
 if (!/^[A-Za-z0-9_-]{8,40}$/.test(sid)) {
@@ -116,10 +118,28 @@ function addMsg(text, who) {
   if (who === "staff") { var l = document.createElement("span"); l.className = "tpc-lbl"; l.textContent = "👩‍💼 Nhân viên TP DESIGN"; d.appendChild(l); }
   fill(d, text); $("tpcBody").appendChild(d); scrollEnd(); return d;
 }
-function typing(on) {
+
+/* Dòng trạng thái khi chatbot đang xử lý (đổi chữ theo thời gian chờ) */
+var typingTimer = null;
+function typing(on, steps) {
   var t = $("tpcTyping");
-  if (on && !t) { t = document.createElement("div"); t.className = "tpc-typing"; t.id = "tpcTyping"; t.innerHTML = "<span></span><span></span><span></span>"; $("tpcBody").appendChild(t); scrollEnd(); }
-  if (!on && t) t.remove();
+  clearInterval(typingTimer); typingTimer = null;
+  if (!on) { if (t) t.remove(); return; }
+  if (!t) {
+    t = document.createElement("div"); t.className = "tpc-typing"; t.id = "tpcTyping";
+    t.innerHTML = "<span></span><span></span><span></span><em></em>";
+    $("tpcBody").appendChild(t);
+  }
+  steps = steps && steps.length ? steps : ["Đang suy nghĩ…"];
+  var em = t.querySelector("em"), i = 0;
+  em.textContent = steps[0];
+  if (steps.length > 1) typingTimer = setInterval(function () { i = Math.min(i + 1, steps.length - 1); em.textContent = steps[i]; }, 1600);
+  scrollEnd();
+}
+function thinkingSteps(text) {
+  var n = " " + norm(text) + " ";
+  var asksLock = /\s(khoa|chan|block)\s|gioi han 24|lich su chan/.test(n);
+  return ["Đang suy nghĩ…", "Đang xem xét yêu cầu…", asksLock ? "Đang tra cứu lịch sử chặn…" : "Đang tra cứu thông tin…"];
 }
 function notify() { if (!opened) $("tpcBadge").classList.add("alert"); }
 
@@ -153,7 +173,10 @@ function toFallback() {
 /* Áp dụng trạng thái server trả về */
 function applyState(r) {
   if (!r) return;
-  (r.msgs || []).forEach(function (m) { addMsg(m.text, m.from); if (m.from === "staff") notify(); });
+  (r.msgs || []).forEach(function (m) {
+    if (m.i != null) { if (seenMsg[m.i]) return; seenMsg[m.i] = 1; }   /* bỏ qua tin đã hiện */
+    addMsg(m.text, m.from); if (m.from === "staff") notify();
+  });
   if (typeof r.last === "number") since = Math.max(since, r.last);
   online = !!r.staffOnline;
   var st = r.status;
@@ -173,17 +196,22 @@ function applyState(r) {
   }
 }
 
-/* ---------- Polling ---------- */
-function stopPoll() { clearTimeout(pollT); pollT = null; }
+/* ---------- Polling (chỉ một vòng lặp chạy tại một thời điểm) ---------- */
+function stopPoll() { pollGen++; clearTimeout(pollT); pollT = null; }
 function startPoll() {
   stopPoll();
+  var g = pollGen;
   (function loop() {
-    if (mode === "bot") return;
+    if (g !== pollGen || mode === "bot") return;
     var d = (mode === "waiting" || mode === "human") ? POLL_LIVE : POLL_IDLE;
     pollT = setTimeout(async function () {
-      if (mode === "bot") return;
+      if (g !== pollGen || mode === "bot") return;
       if (!(document.hidden && mode === "fallback")) {
-        try { applyState(await api({ action: "poll", sid: sid, since: since }, 15000)); } catch (e) {}
+        try {
+          var r = await api({ action: "poll", sid: sid, since: since }, 15000);
+          if (g !== pollGen) return;           /* vòng lặp cũ đã bị thay thế */
+          applyState(r);
+        } catch (e) {}
       }
       loop();
     }, d);
@@ -301,7 +329,7 @@ async function submit(text) {
     if (mode === "human") {
       applyState(await api({ action: "send", sid: sid, text: text, since: since }, 20000));
     } else {
-      typing(true);
+      typing(true, thinkingSteps(text));
       var r = await api({ action: "chat", sid: sid, text: text, since: since }, 40000);
       typing(false);
       if (r.reply) addMsg(r.reply, "bot");
@@ -321,8 +349,8 @@ async function restoreSession() {
   try {
     var r = await api({ action: "poll", sid: sid, since: 0, full: 1 }, 15000);
     if (r.status && r.status !== "none" && (r.msgs || []).length) {
-      r.msgs.forEach(function (m) { addMsg(m.text, m.from); });
-      var st = r.status; r.msgs = [];
+      r.msgs.forEach(function (m) { if (m.i != null) seenMsg[m.i] = 1; addMsg(m.text, m.from); });
+      r.msgs = [];
       connAt = Date.now(); applyState(r);
       return true;
     }
