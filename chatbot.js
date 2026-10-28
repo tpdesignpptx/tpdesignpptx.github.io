@@ -4,7 +4,7 @@
 (function () {
 "use strict";
 
-var API_CHAT   = "https://script.google.com/macros/s/AKfycbxvdxf1jhLmcFGREMpFjNY7F2ep0r4HUdmr8cUMGKzwlu9yOGm49X4h3xPMvxNTYF4L/exec";   /* URL /exec của Code.gs mới */
+var API_CHAT   = "https://script.google.com/macros/s/AKfycbyCx_hJG5aijs6NK1LuNQ_yQJVPVYRCrKYwIDFmim0i7d6IRUkJwAtgfYAdL4YksB9n/exec";   /* URL /exec của Code.gs mới */
 var API_BAN_IP = "https://script.google.com/macros/s/AKfycbxkUi-99oRSdjiyacmpXyv_hkFCXEavfaTbntAHaBeTjvcQz3xNTeKCxKQTW6n9WqGQ/exec";
 var MIN_CONNECT_MS = 3500;   /* màn hình "đang kết nối" hiển thị tối thiểu */
 var POLL_LIVE = 2500, POLL_IDLE = 6000;
