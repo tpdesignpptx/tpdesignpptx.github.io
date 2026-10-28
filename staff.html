@@ -106,6 +106,7 @@ if (params.get("k")) {                       /* nhận khóa từ link Gmail r�
   params.delete("k"); history.replaceState(null, "", location.pathname + (params.toString() ? "?" + params.toString() : ""));
 }
 var curSid = params.get("sid") || "", since = 0, chatT = null, listT = null, pingT = null, wantOnline = true, curStatus = "", beeped = 0;
+var chatBusy = false, chatAgain = false, chatGen = 0, seen = {}, pendingOpt = [], listBusy = false;
 
 function api(payload) {
   payload.k = key;
@@ -142,7 +143,8 @@ function openList() {
   loadList();
 }
 async function loadList() {
-  clearTimeout(listT);
+  if (listBusy) return;
+  listBusy = true; clearTimeout(listT);
   try {
     var r = await api({ action: "sList" });
     var box = $("list"); box.innerHTML = "";
@@ -160,7 +162,8 @@ async function loadList() {
     var n = arr.filter(function (x) { return x.needs; }).length;
     document.title = (n ? "(" + n + ") " : "") + "Nhân viên hỗ trợ — TP DESIGN PPTX";
     if (n > beeped && wantOnline) beep(); beeped = n;
-  } catch (e) { if (e.auth) return needLogin("Khóa không đúng"); }
+  } catch (e) { listBusy = false; if (e.auth) return needLogin("Khóa không đúng"); }
+  listBusy = false;
   if ($("vList").classList.contains("show")) listT = setTimeout(loadList, 4000);
 }
 
@@ -173,22 +176,39 @@ function bubble(m) {
   return d;
 }
 function openChat(sid) {
-  curSid = sid; since = 0; curStatus = ""; $("msgs").innerHTML = ""; $("cName").textContent = "Đang tải…"; $("cStatus").textContent = "";
+  curSid = sid; since = 0; curStatus = ""; seen = {}; pendingOpt = []; chatGen++;
+  $("msgs").innerHTML = ""; $("cName").textContent = "Đang tải…"; $("cStatus").textContent = "";
   $("hTitle").textContent = "Khung chat hỗ trợ"; show("vChat");
   history.replaceState(null, "", location.pathname + "?sid=" + encodeURIComponent(sid));
   pollChat(true);
 }
+/* Thêm tin vào khung chat; bỏ qua tin đã hiện (theo số thứ tự từ server) để không bị trùng */
+function applyMsgs(list) {
+  var box = $("msgs"), near = box.scrollHeight - box.scrollTop - box.clientHeight < 120, gotUser = false;
+  (list || []).forEach(function (m) {
+    if (m.i != null) { if (seen[m.i]) return; seen[m.i] = 1; }
+    if (m.from === "staff" && pendingOpt.length) { var o = pendingOpt.shift(); if (o.parentNode) o.parentNode.removeChild(o); }   /* thay bong bóng tạm bằng tin thật */
+    box.appendChild(bubble(m));
+    if (m.from === "user") gotUser = true;
+  });
+  return { near: near, gotUser: gotUser };
+}
+function removeOpt(o) { var i = pendingOpt.indexOf(o); if (i >= 0) pendingOpt.splice(i, 1); if (o.parentNode) o.parentNode.removeChild(o); }
+function pollNow() { clearTimeout(chatT); pollChat(false); }
+/* Chỉ một yêu cầu hỏi tin mới chạy tại một thời điểm */
 async function pollChat(first) {
-  clearTimeout(chatT);
   if (!curSid) return;
+  if (chatBusy) { chatAgain = true; return; }
+  chatBusy = true; clearTimeout(chatT);
+  var g = chatGen;
   try {
     var r = await api({ action: "sGet", sid: curSid, since: since });
+    if (g !== chatGen) return;                                  /* đã chuyển sang phiên khác */
     if (!r.ok) { $("cName").textContent = "Không mở được phiên"; $("cStatus").textContent = r.error || ""; return; }
-    var box = $("msgs"), near = box.scrollHeight - box.scrollTop - box.clientHeight < 120, gotUser = false;
-    (r.msgs || []).forEach(function (m) { box.appendChild(bubble(m)); if (m.from === "user") gotUser = true; });
+    var a = applyMsgs(r.msgs), box = $("msgs");
     since = Math.max(since, r.last || 0);
-    if (first || near) box.scrollTop = box.scrollHeight;
-    if (gotUser && !first) beep();
+    if (first || a.near) box.scrollTop = box.scrollHeight;
+    if (a.gotUser && !first) beep();
     $("cName").textContent = r.name; curStatus = r.status;
     var map = { active: "Đang trò chuyện với bạn", waiting: "Khách đang chờ kết nối" + (r.queue ? " · hàng đợi #" + r.queue : ""), fallback: "Trợ lý AI đang hỗ trợ tạm · hàng đợi #" + (r.queue || 1), bot: "Khách mới chat với bot", closed: "Đã kết thúc" };
     $("cStatus").textContent = (map[r.status] || r.status) + " · khách hoạt động " + ago(r.lastSeen);
@@ -198,27 +218,37 @@ async function pollChat(first) {
     else if (r.status === "closed") { bn.textContent = "Cuộc trò chuyện đã kết thúc."; bn.classList.add("show"); }
     else bn.classList.remove("show");
   } catch (e) { if (e.auth) return needLogin("Khóa không đúng"); }
-  chatT = setTimeout(pollChat, 2500);
+  finally {
+    chatBusy = false;
+    if (chatAgain) { chatAgain = false; setTimeout(function () { pollChat(false); }, 0); }
+  }
+  /* khi đang trò chuyện hỏi nhanh hơn, khi tab ẩn hỏi chậm lại */
+  chatT = setTimeout(pollChat, document.hidden ? 5000 : (curStatus === "active" ? 1500 : 2500));
 }
 async function send() {
   var t = $("txt"), v = t.value.trim(); if (!v || !curSid) return;
-  t.value = ""; t.style.height = "auto"; $("btnSend").disabled = true;
+  t.value = ""; t.style.height = "auto";
+  /* hiện ngay tin của bạn (mờ) trong lúc chờ máy chủ xác nhận */
+  var box = $("msgs"), opt = bubble({ from: "staff", text: v });
+  opt.style.opacity = ".6"; box.appendChild(opt); box.scrollTop = box.scrollHeight; pendingOpt.push(opt);
   try {
-    var r = await api({ action: "sSend", sid: curSid, text: v });
-    if (!r.ok) alert(r.error || "Gửi thất bại");
-    pollChat(false);
-  } catch (e) { if (e.auth) needLogin("Khóa không đúng"); else { alert("Không gửi được, thử lại nhé."); t.value = v; } }
-  finally { $("btnSend").disabled = false; t.focus(); }
+    var r = await api({ action: "sSend", sid: curSid, text: v, since: since });
+    if (!r.ok) { removeOpt(opt); alert(r.error || "Gửi thất bại"); t.value = v; return; }
+    if (r.msgs) {                                               /* backend mới trả luôn tin mới: hiện ngay */
+      applyMsgs(r.msgs); since = Math.max(since, r.last || 0); removeOpt(opt); box.scrollTop = box.scrollHeight;
+    } else pollNow();                                           /* backend cũ: hỏi tin mới ngay */
+  } catch (e) { removeOpt(opt); if (e.auth) needLogin("Khóa không đúng"); else { alert("Không gửi được, thử lại nhé."); t.value = v; } }
+  finally { t.focus(); }
 }
 $("btnSend").addEventListener("click", send);
 $("txt").addEventListener("keydown", function (e) { if (e.key === "Enter" && !e.shiftKey && !e.isComposing) { e.preventDefault(); send(); } });
 $("txt").addEventListener("input", function () { this.style.height = "auto"; this.style.height = Math.min(this.scrollHeight, 120) + "px"; });
 $("btnAccept").addEventListener("click", async function () {
-  try { await api({ action: "sAccept", sid: curSid }); pollChat(false); } catch (e) { if (e.auth) needLogin("Khóa không đúng"); }
+  try { await api({ action: "sAccept", sid: curSid }); pollNow(); } catch (e) { if (e.auth) needLogin("Khóa không đúng"); }
 });
 $("btnClose").addEventListener("click", async function () {
   if (!confirm("Kết thúc cuộc trò chuyện? Khách sẽ quay lại chat với trợ lý AI.")) return;
-  try { await api({ action: "sClose", sid: curSid }); pollChat(false); } catch (e) { if (e.auth) needLogin("Khóa không đúng"); }
+  try { await api({ action: "sClose", sid: curSid }); pollNow(); } catch (e) { if (e.auth) needLogin("Khóa không đúng"); }
 });
 $("btnBack").addEventListener("click", openList);
 
