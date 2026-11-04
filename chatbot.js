@@ -324,7 +324,7 @@ function norm(t) { return s(t).toLowerCase().normalize("NFD").replace(/[\u0300-\
 function wantsHuman(t) { var n = " " + norm(t) + " "; return HUMAN_WORDS.some(function (w) { return n.indexOf(" " + w + " ") !== -1 || n.indexOf(" " + w + "s ") !== -1; }); }
 
 function offerHuman() {
-  if (mode === "human" || mode === "waiting" || document.querySelector(".tpc-act")) return;
+  if (mode === "human" || mode === "waiting" || $("tpcBody").querySelector(".tpc-act")) return;
   var el = addMsg("Bạn muốn được kết nối với nhân viên hỗ trợ đúng không? Bấm nút bên dưới để xác nhận nhé 👇", "bot");
   var row = document.createElement("div"); row.className = "tpc-act";
   var ok = document.createElement("button"); ok.className = "tpc-b"; ok.textContent = "✅ Xác nhận gặp nhân viên";
