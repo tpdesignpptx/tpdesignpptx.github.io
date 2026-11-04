@@ -319,7 +319,7 @@ function startPoll() {
 }
 
 /* ---------- Gặp nhân viên ---------- */
-var HUMAN_WORDS = ["nhan vien", "admin", "quan tri", "nguoi that", "tu van vien", "ho tro vien", "chu shop", "gap nguoi", "lien he truc tiep", "noi chuyen voi nguoi"];
+var HUMAN_WORDS = ["nhan vien", "admin", "quan tri", "nguoi that", "tu van vien", "ho tro vien", "chu shop", "gap nguoi", "lien he truc tiep", "noi chuyen voi nguoi", "cskh", "cham soc khach hang", "hotline", "tong dai", "bo phan ho tro"];
 function norm(t) { return s(t).toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/đ/g, "d").replace(/[^a-z0-9\s]/g, " ").replace(/\s+/g, " ").trim(); }
 function wantsHuman(t) { var n = " " + norm(t) + " "; return HUMAN_WORDS.some(function (w) { return n.indexOf(" " + w + " ") !== -1 || n.indexOf(" " + w + "s ") !== -1; }); }
 
