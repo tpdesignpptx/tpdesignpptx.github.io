@@ -4,7 +4,7 @@
 (function () {
 "use strict";
 
-var API_CHAT   = "https://script.google.com/macros/s/AKfycbz6Bz-YDnWfU-9sR3mSeExQ3hTNkuPJW_sUlA5GeUOU_33wHTBSDil3w35oFaLypqLV/exec";   /* URL /exec của Code.gs */
+var API_CHAT   = "https://script.google.com/macros/s/AKfycbwfr8001R4UiHgEzCuRz2x1cG6Jm8GpjcMLPD8PBwp46K8emL6WJpR56UAwK3Fa0G3L/exec";   /* URL /exec của Code.gs */
 var API_BAN_IP = "https://script.google.com/macros/s/AKfycbxkUi-99oRSdjiyacmpXyv_hkFCXEavfaTbntAHaBeTjvcQz3xNTeKCxKQTW6n9WqGQ/exec";
 var MIN_CONNECT_MS = 3500;   /* màn hình "đang kết nối" hiển thị tối thiểu */
 var POLL_LIVE = 2500, POLL_IDLE = 6000;
@@ -64,6 +64,8 @@ css.textContent = [
 ".tpc-step{display:flex;align-items:flex-start;gap:8px;font-size:12px;line-height:1.45;padding:3px 0;color:rgba(240,242,255,.6);animation:tpcFade .25s}.tpc-step.run{color:#f0f2ff;font-weight:600}",
 ".tpc-ic{width:14px;height:14px;flex-shrink:0;margin-top:2px;text-align:center;font-size:12px;line-height:14px;font-weight:800;color:#00e5a0}.tpc-step.run .tpc-ic{border:2px solid rgba(255,255,255,.2);border-top-color:#00d4ff;border-radius:50%;animation:tpcSpin .8s linear infinite}",
 ".tpc-step small{display:block;font-weight:500;font-size:11px;color:rgba(240,242,255,.5)}.tpc-step .ms{flex-shrink:0;font-size:10.5px;color:rgba(240,242,255,.4);margin-top:1px}",
+".tpc-d3{display:inline-flex;gap:3px;margin-left:6px}.tpc-d3 i{width:4px;height:4px;border-radius:50%;background:#00d4ff;animation:tpcDot 1.1s infinite}.tpc-d3 i:nth-child(2){animation-delay:.15s}.tpc-d3 i:nth-child(3){animation-delay:.3s}",
+".tpc-sum{align-self:flex-start;max-width:94%}.tpc-sum summary{cursor:pointer;list-style:none;display:inline-block;padding:4px 11px;border-radius:999px;border:1px solid rgba(0,229,160,.3);background:rgba(0,229,160,.08);color:#00e5a0;font-size:11px;font-weight:700}.tpc-sum summary::-webkit-details-marker{display:none}.tpc-sum .tpc-steps{margin-top:6px;padding:8px 10px;border-radius:12px;background:rgba(255,255,255,.05)}",
 ".tpc-caret::after{content:'▍';margin-left:1px;color:#00d4ff;animation:tpcBlink .8s steps(2) infinite}@keyframes tpcBlink{50%{opacity:0}}",
 ".tpc-cards{align-self:stretch;display:flex;gap:10px;overflow-x:auto;padding:2px 2px 8px;scroll-snap-type:x mandatory;scrollbar-width:thin;animation:tpcUp .4s}",
 ".tpc-card{flex:0 0 190px;scroll-snap-align:start;border-radius:16px;overflow:hidden;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.12);cursor:pointer;transition:transform .2s,border-color .2s}.tpc-card:hover{transform:translateY(-3px);border-color:rgba(109,91,255,.6)}",
@@ -139,11 +141,12 @@ function typing(on) {
 function notify() { if (!opened) $("tpcBadge").classList.add("alert"); }
 
 /* ---------- Tiến trình AI thời gian thực ---------- */
-var pgTimer = null, pgBox = null, pgBusy = false, pgKey = "", pgRid = "", curType = null;
+var pgTimer = null, pgBox = null, pgBusy = false, pgKey = "", pgRid = "", curType = null, pgSteps = [], pgT0 = 0;
 function newRid() { return "r" + Date.now().toString(36) + Math.random().toString(36).slice(2, 8); }
 function fmtMs(ms) { return ms >= 1000 ? (ms / 1000).toFixed(1) + "s" : Math.max(1, Math.round(ms)) + "ms"; }
 function renderSteps(steps) {
   if (!pgBox) return;
+  pgSteps = steps;
   var key = JSON.stringify(steps.map(function (x) { return [x.label, x.st, x.note || "", x.ms || 0]; }));
   if (key === pgKey) return; pgKey = key;
   var list = pgBox.querySelector(".tpc-steps"); list.innerHTML = "";
@@ -159,9 +162,9 @@ function renderSteps(steps) {
   scrollEnd();
 }
 function progStart(rid) {
-  progStop(); pgRid = rid; pgKey = "";
+  progStop(); pgRid = rid; pgKey = ""; pgSteps = []; pgT0 = Date.now();
   var b = document.createElement("div"); b.className = "tpc-prog";
-  b.innerHTML = '<div class="tpc-prog-h"><i class="pulse"></i>AI ĐANG LÀM VIỆC · THỜI GIAN THỰC</div><div class="tpc-steps"></div>';
+  b.innerHTML = '<div class="tpc-prog-h"><i class="pulse"></i>AI ĐANG LÀM VIỆC · THỜI GIAN THỰC<span class="tpc-d3"><i></i><i></i><i></i></span></div><div class="tpc-steps"></div>';
   $("tpcBody").appendChild(b); pgBox = b;
   renderSteps([{ label: "Đang gửi câu hỏi tới máy chủ", st: "run" }]);
   pgTimer = setInterval(async function () {
@@ -172,6 +175,20 @@ function progStart(rid) {
       if (pgBox && rid0 === pgRid && r.steps && r.steps.length) renderSteps(r.steps);
     } catch (e) {} finally { pgBusy = false; }
   }, 700);
+}
+/* Khi AI xong: giữ lại khung tiến trình dạng thu gọn, bấm để xem lại các bước */
+async function progFinish() {
+  if (!pgBox) return;
+  var rid0 = pgRid;
+  clearInterval(pgTimer); pgTimer = null;
+  try { var f = await api({ action: "progress", sid: sid, rid: rid0 }, 1500); if (pgBox && f.steps && f.steps.length) renderSteps(f.steps); } catch (e) {}
+  var steps = pgSteps || [];
+  if (!pgBox || !steps.length || (steps.length === 1 && steps[0].st === "run")) { progStop(); return; }
+  var det = document.createElement("details"); det.className = "tpc-sum";
+  var sm = document.createElement("summary");
+  sm.textContent = "✓ AI đã làm xong " + steps.length + " bước trong " + ((Date.now() - pgT0) / 1000).toFixed(1) + "s · bấm để xem";
+  det.appendChild(sm); det.appendChild(pgBox.querySelector(".tpc-steps"));
+  pgBox.replaceWith(det); pgBox = null; pgRid = "";
 }
 function progStop() { clearInterval(pgTimer); pgTimer = null; if (pgBox) { pgBox.remove(); pgBox = null; } pgRid = ""; }
 
@@ -415,7 +432,7 @@ async function submit(text) {
     } else {
       var rid = newRid(); progStart(rid);
       var r = await api({ action: "chat", sid: sid, text: text, since: since, rid: rid }, 55000);
-      progStop();
+      await progFinish();
       if (r.reply) { await typeMsg(r.reply, "bot"); renderCards(r.cards); }
       applyState(r);
       if (r.needHuman && mode === "bot") offerHuman();
