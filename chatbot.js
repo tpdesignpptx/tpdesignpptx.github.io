@@ -164,7 +164,7 @@ function renderSteps(steps) {
 function progStart(rid) {
   progStop(); pgRid = rid; pgKey = ""; pgSteps = []; pgT0 = Date.now();
   var b = document.createElement("div"); b.className = "tpc-prog";
-  b.innerHTML = '<div class="tpc-prog-h"><i class="pulse"></i>AI ĐANG LÀM VIỆC · THỜI GIAN THỰC<span class="tpc-d3"><i></i><i></i><i></i></span></div><div class="tpc-steps"></div>';
+  b.innerHTML = '<div class="tpc-prog-h" style="margin-bottom:4px"><span class="tpc-d3" style="margin-left:0"><i></i><i></i><i></i></span></div><div class="tpc-steps"></div>';
   $("tpcBody").appendChild(b); pgBox = b;
   renderSteps([{ label: "Đang gửi câu hỏi tới máy chủ", st: "run" }]);
   pgTimer = setInterval(async function () {
